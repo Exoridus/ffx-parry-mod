@@ -23,7 +23,6 @@ internal sealed class FfxDataMappings
         "commands.txt"
     ];
     private static readonly string[] _legacyCompactJsonNames = [
-        "ffx-mappings.json",
         "fhparry.mappings.json"
     ];
 

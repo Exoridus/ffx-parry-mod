@@ -1,4 +1,4 @@
-# AI Repository Rules — fahrenheit-parry-mod
+# AI Repository Rules — ffx-parry-mod
 
 These rules apply to all AI assistants working in this repository, including Claude, Codex, Gemini, and similar coding agents.
 
@@ -89,7 +89,7 @@ This repository is a Final Fantasy X mod loaded through Fahrenheit.
 
 It contains:
 - runtime mod code in `src/`
-- shipped runtime assets in `resources/`, `lang/`, and the runtime subset of `mappings/`
+- shipped runtime assets in `resources/`, `lang/`, and `resources/mappings/`
 - build and automation code in `build/`
 - contributor and operational documentation in `docs/`
 - CI/CD and repository automation in `.github/`
@@ -104,8 +104,8 @@ Use these boundaries consistently:
 - `src/` → runtime mod source code only
 - `resources/` → shipped media and runtime assets
 - `lang/` → shipped localization resources
-- `mappings/` → mapping assets and mapping sources
-- `build/` → build orchestration, automation, release, setup, and data workflows
+- `resources/mappings/` -> generated runtime mapping assets
+- `build/` → build orchestration, automation, release, and setup
 - `tests/` → automated tests and validation helpers
 - `docs/` → contributor-facing and operational documentation
 - `.github/` → CI/CD and repository automation
@@ -121,7 +121,7 @@ Runtime-critical:
 - `src/`
 - `resources/`
 - `lang/`
-- runtime-consumed mapping bundles in `mappings/`
+- runtime-consumed mapping bundles in `resources/mappings/`
 
 Local/development-only:
 - `.workspace/`

@@ -1,19 +1,18 @@
-# Repo Boundary — fahrenheit-parry-mod ↔ ffx-knowledge-base
+# Repo Boundary — ffx-parry-mod ↔ ffx-knowledge-base
 
 This document describes the intended split between this repository and the
 sibling `ffx-knowledge-base` repo.
 
-## This repo (fahrenheit-parry-mod) owns
+## This repo (ffx-parry-mod) owns
 
 - **Runtime mod code** under `src/` — Fahrenheit-hosted parry logic, ATEL
   patches, damage redirection, UI hooks, audio, etc.
 - **Mod resources, lang files, mappings** under `resources/`, `lang/`,
-  `mappings/runtime/` — everything that ships as part of the loaded mod.
+  `resources/mappings/` — everything that ships as part of the loaded mod.
 - **Mod-build orchestration** — the Fahrenheit runtime clone bootstrap
-  (`build.proj`), mod compilation, mod release/versioning (`build.cmd
+  (`build/Build.proj`), mod compilation, mod release/versioning (`build.cmd
   build`, `build.cmd release-*`, `build.cmd commit-prep`).
-- **Mod governance** — `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` agent routing
-  and repository rules.
+- **Mod governance** — `AGENTS.md`, imported by the one-line `CLAUDE.md`.
 - **Mod runtime config** — `GameDir` (where to install the built mod),
   `AutoDeploy`, `DeployPreservePaths`, build-mode defaults.
 - **Deployed knowledge packs as read-only consumption** under
@@ -48,16 +47,7 @@ sibling `ffx-knowledge-base` repo.
 
 ## Current state
 
-The boundary is fully enforced:
-
-- The pipeline build files (`Build.Data*.cs`, `Build.Discord*.cs`,
-  `Build.Ghidra*.cs`, `Build.Discord.Types.cs`) have been removed from
-  `build/`. `build.cmd` and `tools.cmd` no longer have any pipeline
-  workflow registrations.
-- `.workspace/{tools,data,discord,analysis}` have been deleted. These are
-  now owned exclusively by the pipeline repo.
-- `build/Build.Quality.cs` clean workflow updated to remove Discord-specific
-  housekeeping references.
+`build.cmd` exposes mod workflows only. Research tooling runs in the pipeline repository. Cleanup removes generated mod build outputs and leaves research inputs and local settings alone.
 
 ## Active `.workspace/` contents
 
@@ -69,21 +59,20 @@ The following are mod-owned and still live:
 - `.workspace/external/` — reference repos (if present)
 - `.workspace/logs/` — transient mod debug logs
 
-## Runtime mappings (`mappings/`)
+## Runtime mappings (`resources/mappings/`)
 
 The mod ships locale-specific mapping bundles that it loads at runtime for
 command/monster/battle/event name resolution. These are **not** knowledge-base
 artifacts — they are a runtime-consumed, mod-specific bundle format.
 
-**This repo now only contains `mappings/runtime/`.** The old
+**This repo now only contains `resources/mappings/`.** The old
 `mappings/source/` tree was deleted once the pipeline-side producer moved
 off of it.
 
-- **`mappings/runtime/ffx-mappings[.{locale}].json`** — **runtime-required.**
+- **`resources/mappings/ffx-mappings.{locale}.json`** — **runtime-required.**
   Loaded by `src/.../ParryModule.DataMapping.cs` via `LoadFromDirectories()`,
-  shipped with the mod via `Fahrenheit.Mods.Parry.csproj`
-  (`<None Include="mappings/runtime/*.json" CopyToOutputDirectory="Always" />`),
-  and verified by `build/Build.Quality.cs` smoke checks.
+  packaged by Fahrenheit.Sdk's standard resources rule and verified by
+  `build/Build.Quality.cs` smoke checks.
   These files stay here — they are mod-owned (consumed at runtime) but
   produced in the pipeline repo.
 
@@ -114,5 +103,5 @@ game-data directory holds one `<family>_<locale>.json` per locale. The
 `Battles`/`Events` inputs are no longer frozen snapshots: `build.cmd
 extract-script-text` produces all 8 locales under `canonical/ffx/scripts/`.
 
-Do not hand-edit the runtime bundles in `mappings/runtime/`. Run the
+Do not hand-edit the runtime bundles in `resources/mappings/`. Run the
 generator instead.

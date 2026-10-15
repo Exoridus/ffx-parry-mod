@@ -24,17 +24,11 @@ public unsafe sealed partial class ParryModule
     private readonly FhSettingToggle _setEnabled      = new("fhparry.enabled",      true);
     private readonly FhSettingToggle _setDodgeEnabled = new("fhparry.dodge",        true);
 
-    /// <summary>
-    ///     Difficulty as an index into <see cref="ParryDifficultyModel.GetSelectableDifficulties"/>.
-    ///     A number rather than a name because Fahrenheit has no combo type and a free-text field
-    ///     would accept "Nomal" silently; an index cannot be mistyped into something that looks
-    ///     valid. The range follows the build, since Debug is only selectable in one.
-    /// </summary>
     private readonly FhSettingNumber<int> _setDifficulty =
 #if DEBUG
-        new("fhparry.difficulty", 0, 0, 3, 1);
+        new("fhparry.difficulty", (int)ParryDifficultyModel.DefaultDifficulty, 0, 3, 1);
 #else
-        new("fhparry.difficulty", 1, 0, 2, 1);
+        new("fhparry.difficulty", (int)ParryDifficultyModel.DefaultDifficulty, 0, 2, 1);
 #endif
 
     // ── Battle camera ─────────────────────────────────────────────────────────
@@ -84,48 +78,38 @@ public unsafe sealed partial class ParryModule
         new("fhparry.logging", false);
 #endif
 
-    private readonly FhSettingToggle _setDebugOverlay =
 #if DEBUG
-        new("fhparry.debug_overlay", true);
-#else
-        new("fhparry.debug_overlay", false);
-#endif
-
-    private readonly FhSettingToggle _setCameraProbe =
-#if DEBUG
-        new("fhparry.camera_probe", true);
-#else
-        new("fhparry.camera_probe", false);
-#endif
-
+    private readonly FhSettingToggle _setDebugOverlay = new("fhparry.debug_overlay", true);
+    private readonly FhSettingToggle _setCameraProbe = new("fhparry.camera_probe", true);
     private readonly FhSettingToggle _setNativeProbeLogging = new("fhparry.native_probe_logging", false);
-    private readonly FhSettingToggle _setParryNativeBlock   = new("fhparry.parry_native_block",   false);
-
-    /// <summary>
-    ///     Built rather than assigned from a helper: <c>FhModule.settings</c> is
-    ///     <c>protected init</c>, so the assignment has to sit lexically in the constructor.
-    /// </summary>
-    private FhSettingsCategory build_settings()
-        => new("fhparry",
-        [
-            _setEnabled,
-            _setDifficulty,
-            _setDodgeEnabled,
-            _setMonsterCamera,
-            _setCharacterCamera,
-#if DEBUG
-            _setFlowCamera,
+    private readonly FhSettingToggle _setParryNativeBlock = new("fhparry.parry_native_block", false);
 #endif
-            _setSound,
-            _setParryEffect,
-            _setImpactShake,
-            _setStreakCounter,
-            _setLogging,
-            _setDebugOverlay,
-            _setCameraProbe,
-            _setNativeProbeLogging,
-            _setParryNativeBlock,
-        ]);
+
+    private sealed class Settings(ParryModule module) : FhSettingProvider<ParryModule>
+    {
+        protected override IEnumerable<FhSetting> get()
+            => [
+            module._setEnabled,
+            module._setDifficulty,
+            module._setDodgeEnabled,
+            module._setMonsterCamera,
+            module._setCharacterCamera,
+#if DEBUG
+            module._setFlowCamera,
+#endif
+            module._setSound,
+            module._setParryEffect,
+            module._setImpactShake,
+            module._setStreakCounter,
+            module._setLogging,
+#if DEBUG
+            module._setDebugOverlay,
+            module._setCameraProbe,
+            module._setNativeProbeLogging,
+            module._setParryNativeBlock,
+#endif
+            ];
+    }
 
     // ── The names the rest of the module reads ────────────────────────────────
 
@@ -136,13 +120,20 @@ public unsafe sealed partial class ParryModule
     private bool _optionImpactShake        => _setImpactShake.get();
     private bool _optionStreakCounter      => _setStreakCounter.get();
     private bool _optionLogging            => _setLogging.get();
+#if DEBUG
     private bool _optionDebugOverlay       => _setDebugOverlay.get();
     private bool _optionCameraProbe        => _setCameraProbe.get();
     private bool _optionNativeProbeLogging => _setNativeProbeLogging.get();
     private bool _optionParryNativeBlock   => _setParryNativeBlock.get();
+#else
+    private bool _optionDebugOverlay       => false;
+    private bool _optionCameraProbe        => false;
+    private bool _optionNativeProbeLogging => false;
+    private bool _optionParryNativeBlock   => false;
+#endif
 
     private ParryDifficulty _optionDifficulty
-        => ParryDifficultyModel.DifficultyFromComboIndex(_setDifficulty.get());
+        => ParryDifficultyModel.NormalizeDifficulty((ParryDifficulty)_setDifficulty.get());
 
     private bool _optionMonsterCameraAllowed   => _setMonsterCamera.get();
     private bool _optionCharacterCameraAllowed => _setCharacterCamera.get();

@@ -686,7 +686,7 @@ public unsafe sealed partial class ParryModule : FhModule
     {
         // Settings live in Fahrenheit's panel and are persisted by it; see
         // ParryModule.NativeSettings.cs for what that costs and what it rules out.
-        settings = build_settings();
+        _ = new Settings(this);
 
         // Hook delegates are cached (see ParryModule.OrigCalls.cs) so chain_from() does not
         // allocate a fresh delegate on every native call. The same instance is handed to both

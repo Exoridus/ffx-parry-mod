@@ -87,10 +87,10 @@ Helpful command:
 2. Run:
 
 ```cmd
-.\build.cmd release-ready --repo Exoridus/fahrenheit-parry-mod
-.\build.cmd release-bump --bump patch --repo Exoridus/fahrenheit-parry-mod
+.\build.cmd mod-pack --sdk local --tag v0.0.0-dev --out-dir .release --full true
+.\build.cmd release-bump --bump patch --repo Exoridus/ffx-parry-mod
 git push origin main
-gh workflow run Release -f version=v1.2.3
+gh workflow run release.yml -f version=v1.2.3 -f sdk=local -f dry_run=true
 ```
 
 `release-bump` updates version/changelog, pins `fahrenheit.release.ref`, and creates the release commit. It does **not** create a tag.

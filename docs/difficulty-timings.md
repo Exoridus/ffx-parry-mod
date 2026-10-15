@@ -4,6 +4,14 @@ The authored values behind `ParryDifficultyModel`, recorded before any settings 
 calibration survives a change to how it is stored or exposed. Everything is counted in **battle
 ticks**; the millisecond column is derived at 30 ticks per second and never stored.
 
+## Settings values
+
+F7 uses stable numeric IDs: `0 = Easy`, `1 = Normal`, `2 = Expert` in both Debug and Release. Debug additionally offers `3 = Debug`, its default testing preset. Release defaults to Normal and treats the unsupported Debug value as Normal. The existing released values and setting key are unchanged.
+
+Older Debug configurations used `0 = Debug`, `1 = Easy`, `2 = Normal`, `3 = Expert` without recording the originating build. Select the intended difficulty once when reusing such a file. Those ambiguous values are not automatically remapped, because doing so would reinterpret valid Release configurations.
+
+The diagnostic overlay, camera-call probe, native probe logging and experimental native block reaction are available only in Debug. Release ignores saved values for these diagnostic options. Session logging remains available in both builds. Enabling native probe installation requires a restart.
+
 ## The four quantities
 
 | Quantity | What it is |

@@ -228,7 +228,7 @@ Benefits:
 1. Hook gives timing and transition boundaries (`MsExeInputCue`, main loop).
 2. Struct reads give current combat state (`Btl*`, cues, attacker/target).
 3. Offset fallback fills gaps where struct modeling is incomplete.
-4. JSON data mappings (`mappings/runtime/*.json`) map IDs to user-facing labels.
+4. JSON data mappings (`resources/mappings/*.json`) map IDs to user-facing labels.
 5. Debug timeline/log displays interpreted state transitions.
 
 Example output formatting path:

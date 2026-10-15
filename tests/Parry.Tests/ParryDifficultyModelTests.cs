@@ -50,6 +50,26 @@ public sealed class ParryDifficultyModelTests
 
     // Expert used to pay twice: the tightest window AND the longest recovery (767 ms against
     // Normal's 600). Guard against that returning.
+    [Theory]
+    [InlineData(0, ParryDifficulty.Easy)]
+    [InlineData(1, ParryDifficulty.Normal)]
+    [InlineData(2, ParryDifficulty.Expert)]
+    public void PersistedValuesRetainMeaningAcrossBuildConfigurations(int value, ParryDifficulty expected)
+    {
+        Assert.Equal(value, (int)expected);
+        Assert.Equal(expected, ParryDifficultyModel.NormalizeDifficulty((ParryDifficulty)value));
+    }
+
+    [Fact]
+    public void DebugValueIsDistinctFromReleasedDifficulties()
+    {
+#if DEBUG
+        Assert.Equal(3, (int)ParryDifficulty.Debug);
+#else
+        Assert.Equal(ParryDifficulty.Normal, ParryDifficultyModel.NormalizeDifficulty((ParryDifficulty)3));
+#endif
+    }
+
     [Fact]
     public void Expert_DoesNotPayTwice()
     {
@@ -165,7 +185,7 @@ public sealed class ParryDifficultyModelTests
 
 #if DEBUG
         Assert.Equal(
-            new[] { ParryDifficulty.Debug, ParryDifficulty.Easy, ParryDifficulty.Normal, ParryDifficulty.Expert },
+            new[] { ParryDifficulty.Easy, ParryDifficulty.Normal, ParryDifficulty.Expert, ParryDifficulty.Debug },
             selectable);
 #else
         Assert.Equal(

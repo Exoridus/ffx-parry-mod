@@ -5,25 +5,14 @@ if /I "%~1"=="build" (
     set "DEFAULT_TARGET=Help"
     set "HELP_TARGET=Help"
     set "CLI_TARGET=Cli"
-    set "LOCK_LABEL=build/tools"
+    set "LOCK_LABEL=build"
     set "SMOKE_ONLY_VALUE=%BUILD_CMD_SMOKE_ONLY%"
     set "ALLOW_NESTED_VALUE=%BUILD_CMD_ALLOW_NESTED%"
     shift
     goto mode_ready
 )
 
-if /I "%~1"=="tools" (
-    set "DEFAULT_TARGET=ToolsHelp"
-    set "HELP_TARGET=ToolsHelp"
-    set "CLI_TARGET=ToolsCli"
-    set "LOCK_LABEL=build/tools"
-    set "SMOKE_ONLY_VALUE=%TOOLS_CMD_SMOKE_ONLY%"
-    set "ALLOW_NESTED_VALUE=%TOOLS_CMD_ALLOW_NESTED%"
-    shift
-    goto mode_ready
-)
-
-echo ERROR: missing or invalid launcher mode. Expected "build" or "tools".
+echo ERROR: missing or invalid launcher mode. Expected "build".
 exit /B 2
 
 :mode_ready
@@ -233,99 +222,6 @@ if not "%WORKFLOW%"=="" (
         goto :eof
     )
 
-    if /I "%WORKFLOW%"=="clean" (
-        if /I "%ARG1%"=="--tools" (
-            echo ERROR: --tools is no longer supported. Use --purge-tools.
-            set "PARSE_ERROR=1"
-            goto :eof
-        )
-
-        set "TOOLS_PREFIX=!ARG1:~0,8!"
-        if /I "!TOOLS_PREFIX!"=="--tools=" (
-            echo ERROR: --tools is no longer supported. Use --purge-tools.
-            set "PARSE_ERROR=1"
-            goto :eof
-        )
-    )
-
-    if /I "%WORKFLOW%"=="data-parse" (
-        goto normalize_data_aliases
-    )
-    if /I "%WORKFLOW%"=="data-parse-all" (
-        goto normalize_data_aliases
-    )
-    if /I "%WORKFLOW%"=="map-import" (
-        goto normalize_data_aliases
-    )
-)
-
-goto normalize_verbosity
-
-:normalize_data_aliases
-if /I "%ARG1%"=="--out-dir" (
-    if "%ARG2%"=="" (
-        echo ERROR: --out-dir requires a path.
-        set "PARSE_ERROR=1"
-        goto :eof
-    )
-    set "FORWARD_OVERRIDE=--data-out %ARG2_RAW%"
-    set "SHIFT_EXTRA=1"
-    goto :eof
-)
-
-set "OUT_DIR_PREFIX=!ARG1:~0,10!"
-if /I "!OUT_DIR_PREFIX!"=="--out-dir=" (
-    set "FORWARD_OVERRIDE=--data-out=!ARG1:~10!"
-    goto :eof
-)
-
-if /I "%ARG1%"=="--data-out" (
-    echo ERROR: --data-out is no longer supported. Use --out-dir.
-    set "PARSE_ERROR=1"
-    goto :eof
-)
-set "DATA_OUT_PREFIX=!ARG1:~0,11!"
-if /I "!DATA_OUT_PREFIX!"=="--data-out=" (
-    echo ERROR: --data-out is no longer supported. Use --out-dir.
-    set "PARSE_ERROR=1"
-    goto :eof
-)
-
-if /I "%WORKFLOW%"=="data-parse" (
-    goto normalize_input_alias
-)
-if /I "%WORKFLOW%"=="data-parse-all" (
-    goto normalize_input_alias
-)
-goto normalize_verbosity
-
-:normalize_input_alias
-if /I "%ARG1%"=="--input-dir" (
-    if "%ARG2%"=="" (
-        echo ERROR: --input-dir requires a path.
-        set "PARSE_ERROR=1"
-        goto :eof
-    )
-    set "FORWARD_OVERRIDE=--input-dir %ARG2_RAW%"
-    set "SHIFT_EXTRA=1"
-    goto :eof
-)
-
-set "INPUT_DIR_PREFIX=!ARG1:~0,12!"
-if /I "!INPUT_DIR_PREFIX!"=="--input-dir=" (
-    goto :eof
-)
-
-if /I "%ARG1%"=="--data-root" (
-    echo ERROR: --data-root is no longer supported. Use --input-dir.
-    set "PARSE_ERROR=1"
-    goto :eof
-)
-set "DATA_ROOT_PREFIX=!ARG1:~0,12!"
-if /I "!DATA_ROOT_PREFIX!"=="--data-root=" (
-    echo ERROR: --data-root is no longer supported. Use --input-dir.
-    set "PARSE_ERROR=1"
-    goto :eof
 )
 
 :normalize_verbosity

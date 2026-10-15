@@ -6,12 +6,12 @@ x86 runtime identifier, dynamic loading, the reference to Fahrenheit's core
 library, and the conventions for the manifest, lang/, efl/ and resources/.
 See its Sdk.props for what that covers; do not repeat any of it here.
 
-The SDK is resolved from NuGet. Until the alpha11 packages are on nuget.org they
+The SDK is resolved from NuGet. Until the alpha12 packages are on nuget.org they
 come from the local feed in NuGet.config, which Fahrenheit's own build fills.
 That means Fahrenheit must have been built once before this project can even be
 evaluated; 'build.cmd setup' does exactly that.
 -->
-<Project Sdk="Fahrenheit.Sdk/1.0.0-alpha11">
+<Project Sdk="Fahrenheit.Sdk/1.0.0-alpha12">
 
     <!-- ASSEMBLY ADDITIONAL PROPERTIES -->
     <!--
@@ -35,8 +35,8 @@ evaluated; 'build.cmd setup' does exactly that.
         <Product>Parry Prototype</Product>
         <Description>Watches battle cues and lets you parry physical attacks by pressing R1 (or P on keyboard).</Description>
         <Authors>Thomas</Authors>
-        <Version>0.4.1</Version>
-        <RepositoryUrl>https://github.com/Exoridus/fahrenheit-parry-mod</RepositoryUrl>
+        <Version>0.5.2</Version>
+        <RepositoryUrl>https://github.com/Exoridus/ffx-parry-mod</RepositoryUrl>
         <FhManifestFlags>NONE</FhManifestFlags>
         <!-- Without this the SDK appends '+<commit sha>' to InformationalVersion, and
              that lands verbatim in the manifest's Version field. -->
@@ -58,12 +58,5 @@ evaluated; 'build.cmd setup' does exactly that.
         <Compile Remove="tests/**" />
     </ItemGroup>
 
-    <!-- ASSETS: RUNTIME MAPPINGS -->
-    <!--
-    Mod-specific, and therefore not covered by the SDK's asset conventions.
-    -->
-    <ItemGroup>
-        <None Include="mappings/runtime/*.json" CopyToOutputDirectory="Always" />
-    </ItemGroup>
 
 </Project>

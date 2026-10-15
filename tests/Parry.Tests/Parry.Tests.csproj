@@ -7,12 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Fahrenheit" Version="1.0.0-alpha12" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\build\SettingsMigration.cs" Link="build\SettingsMigration.cs" />
+    <Compile Include="..\..\src\data\FfxDataMappings.cs" Link="data\FfxDataMappings.cs" />
     <Compile Include="..\..\src\combat\DodgeCommitGate.cs" Link="combat\DodgeCommitGate.cs" />
     <Compile Include="..\..\src\combat\ParryDifficultyModel.cs" Link="combat\ParryDifficultyModel.cs" />
     <Compile Include="..\..\src\combat\ParryInputState.cs" Link="combat\ParryInputState.cs" />

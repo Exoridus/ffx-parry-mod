@@ -32,7 +32,7 @@ This repository uses English-only source and documentation conventions.
 - `tests/` automated tests.
 - `docs/` contributor and operational documentation.
 - `lang/` localization files.
-- `mappings/` mapping inputs/runtime bundles.
+- `resources/mappings/` generated runtime bundles.
 - `.workspace/` local/generated workspace data.
 
 ## Formatting and Enforcement

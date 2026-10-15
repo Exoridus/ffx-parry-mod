@@ -2,15 +2,11 @@ namespace Fahrenheit.Mods.Parry;
 
 public enum ParryDifficulty
 {
-#if DEBUG
-    Debug = 0,
-    Easy = 1,
-    Normal = 2,
-    Expert = 3
-#else
     Easy = 0,
     Normal = 1,
-    Expert = 2
+    Expert = 2,
+#if DEBUG
+    Debug = 3,
 #endif
 }
 
@@ -141,12 +137,12 @@ public static class ParryDifficultyModel
 #if DEBUG
     private static readonly ParryDifficulty[] SelectableDifficulties =
     [
-        ParryDifficulty.Debug,
         ParryDifficulty.Easy,
         ParryDifficulty.Normal,
-        ParryDifficulty.Expert
+        ParryDifficulty.Expert,
+        ParryDifficulty.Debug
     ];
-    private const string DifficultyComboItems = "Debug\0Easy\0Normal\0Expert\0";
+    private const string DifficultyComboItems = "Easy\0Normal\0Expert\0Debug\0";
 #else
     private static readonly ParryDifficulty[] SelectableDifficulties =
     [

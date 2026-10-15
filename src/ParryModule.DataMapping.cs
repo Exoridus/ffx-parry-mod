@@ -2,18 +2,6 @@ namespace Fahrenheit.Mods.Parry;
 
 public unsafe sealed partial class ParryModule
 {
-    private static readonly string[] _mappingJsonNames = [
-        "ffx-mappings.json",
-        "ffx-mappings.us.json",
-        "ffx-mappings.de.json",
-        "ffx-mappings.fr.json",
-        "ffx-mappings.it.json",
-        "ffx-mappings.sp.json",
-        "ffx-mappings.jp.json",
-        "ffx-mappings.ch.json",
-        "ffx-mappings.kr.json"
-    ];
-
     private void initialize_data_mappings(FhModContext modContext)
     {
         if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("FHPARRY_DATA_MAP_DIR")))
@@ -39,7 +27,7 @@ public unsafe sealed partial class ParryModule
         }
         else
         {
-            _dataMappingStatus = "No mappings loaded. Place locale bundles (ffx-mappings.<locale>.json) in mappings/runtime or set FH_PARRY_DATA_MAP_DIR.";
+            _dataMappingStatus = "No mappings loaded. Place locale bundles (ffx-mappings.<locale>.json) in resources/mappings or set FH_PARRY_DATA_MAP_DIR.";
             _logger.Info($"[Parry][DataMap] {_dataMappingStatus}");
         }
     }
@@ -57,74 +45,16 @@ public unsafe sealed partial class ParryModule
         add_if_not_blank(Environment.GetEnvironmentVariable("FH_PARRY_DATA_MAP_DIR"));
         add_if_not_blank(Environment.GetEnvironmentVariable("FHPARRY_DATA_MAP_DIR"));
 
-        add_if_not_blank(Path.Combine(modContext.Paths.ModDir.FullName, "mappings", "runtime"));
-        add_if_not_blank(Path.Combine(modContext.Paths.ResourcesDir.FullName, "mappings", "runtime"));
-        add_if_not_blank(modContext.Paths.ResourcesDir.FullName);
-
-        string cwd = Environment.CurrentDirectory;
+        add_if_not_blank(Path.Combine(modContext.Paths.ResourcesDir.FullName, "mappings"));
 #if DEBUG
-        // Local dev fallbacks — .workspace is research infrastructure, not available in release builds.
-        add_if_not_blank(Path.Combine(cwd, ".workspace", "data", "ffx-dataparser"));
-        add_if_not_blank(Path.Combine(cwd, ".workspace", "data", "ffx_parser"));
-        add_if_not_blank(Path.Combine(cwd, ".workspace", "data", "exports"));
-        add_if_not_blank(Path.Combine(cwd, ".workspace", "data"));
+        add_if_not_blank(Path.Combine(Environment.CurrentDirectory, "resources", "mappings"));
 #endif
-        add_if_not_blank(Path.Combine(cwd, "mappings", "runtime"));
-
-        foreach (string discovered in discover_mapping_dirs(cwd))
-        {
-            add_if_not_blank(discovered);
-        }
 
         // Distinct while preserving order.
         return dirs
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-    }
-
-    private static IEnumerable<string> discover_mapping_dirs(string cwd)
-    {
-        if (string.IsNullOrWhiteSpace(cwd)) yield break;
-
-        string[] roots = [
-#if DEBUG
-            // Local dev roots — .workspace is research infrastructure, not available in release builds.
-            Path.Combine(cwd, ".workspace", "data"),
-            Path.Combine(cwd, ".workspace", "exports"),
-#endif
-            Path.Combine(cwd, "resources"),
-            Path.Combine(cwd, "mappings")
-        ];
-
-        var emitted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        for (int i = 0; i < roots.Length; i++)
-        {
-            string root = roots[i];
-            if (!Directory.Exists(root)) continue;
-
-            IEnumerable<string> files;
-            try
-            {
-                files = Directory.EnumerateFiles(root, "*.json", SearchOption.AllDirectories);
-            }
-            catch (Exception)
-            {
-                // Silently skip roots that cannot be enumerated (missing mounts, permission errors, etc.).
-                continue;
-            }
-
-            foreach (string file in files)
-            {
-                string name = Path.GetFileName(file);
-                if (!_mappingJsonNames.Contains(name, StringComparer.OrdinalIgnoreCase)) continue;
-
-                string? dir = Path.GetDirectoryName(file);
-                if (string.IsNullOrWhiteSpace(dir)) continue;
-                if (!emitted.Add(dir)) continue;
-                yield return dir;
-            }
-        }
     }
 
     private bool try_get_last_command_label(out string label, out string kind, out ushort commandId)

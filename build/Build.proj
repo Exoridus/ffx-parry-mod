@@ -1,11 +1,11 @@
 <Project DefaultTargets="Help">
     <PropertyGroup>
-        <RepoRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)'))</RepoRoot>
+        <RepoRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..'))</RepoRoot>
         <FahrenheitRepo Condition="'$(FahrenheitRepo)' == ''">https://github.com/fahrenheit-crew/fahrenheit.git</FahrenheitRepo>
         <FahrenheitDir Condition="'$(FahrenheitDir)' == ''">$([MSBuild]::NormalizeDirectory('$(RepoRoot)', '.workspace', 'fahrenheit'))</FahrenheitDir>
         <!-- Pin to the committed ref (fahrenheit.release.ref) by default so a plain build is
              deterministic and does NOT silently drift to origin/main (which is currently the
-             in-flight alpha11 line). Explicit -p:FahrenheitRef=... still overrides. -->
+             in-flight alpha12 line). Explicit -p:FahrenheitRef=... still overrides. -->
         <FahrenheitRef Condition="'$(FahrenheitRef)' == '' and Exists('$(RepoRoot)fahrenheit.release.ref')">$([System.IO.File]::ReadAllText('$(RepoRoot)fahrenheit.release.ref').Trim())</FahrenheitRef>
         <FahrenheitRef Condition="'$(FahrenheitRef)' == ''">origin/main</FahrenheitRef>
         <FahrenheitDirPath>$([System.Text.RegularExpressions.Regex]::Replace('$([MSBuild]::NormalizePath('$(FahrenheitDir)'))', '[\\/]+$$', ''))</FahrenheitDirPath>
@@ -24,8 +24,8 @@
         <!-- Local NuGet feed Fahrenheit's build writes its packages to; see NuGet.config. -->
         <FahrenheitPkgDirRel>$([MSBuild]::NormalizeDirectory('$(FahrenheitDir)', 'artifacts', 'pkg', 'rel'))</FahrenheitPkgDirRel>
         <FahrenheitPkgDirDbg>$([MSBuild]::NormalizeDirectory('$(FahrenheitDir)', 'artifacts', 'pkg', 'dbg'))</FahrenheitPkgDirDbg>
-        <Stage0Project Condition="'$(Stage0Project)' == ''">$([MSBuild]::NormalizePath('$(FahrenheitDir)', 'src', 'stage0', 'Fahrenheit.Loader.Stage0.vcxproj'))</Stage0Project>
-        <Stage1Project Condition="'$(Stage1Project)' == ''">$([MSBuild]::NormalizePath('$(FahrenheitDir)', 'src', 'stage1', 'Fahrenheit.Loader.Stage1.vcxproj'))</Stage1Project>
+        <Stage0Project Condition="'$(Stage0Project)' == ''">$([MSBuild]::NormalizePath('$(FahrenheitDir)', 'src', 'stage0', 'Fahrenheit.Stage0.vcxproj'))</Stage0Project>
+        <Stage1Project Condition="'$(Stage1Project)' == ''">$([MSBuild]::NormalizePath('$(FahrenheitDir)', 'src', 'stage1', 'Fahrenheit.Stage1.vcxproj'))</Stage1Project>
 
         <_LegacyManagedCoreProject>$([MSBuild]::NormalizePath('$(FahrenheitDir)', 'core', 'fh', 'Fahrenheit.csproj'))</_LegacyManagedCoreProject>
         <_LegacyManagedRuntimeProject>$([MSBuild]::NormalizePath('$(FahrenheitDir)', 'core', 'runtime', 'Fahrenheit.Runtime.csproj'))</_LegacyManagedRuntimeProject>
@@ -55,10 +55,10 @@
 
     <Target Name="Help">
         <Message Importance="high" Text="Targets:" />
-        <Message Importance="high" Text="  dotnet msbuild build.proj -t:Setup [-p:FahrenheitDir=...] [-p:FahrenheitRepo=...]" />
-        <Message Importance="high" Text="  dotnet msbuild build.proj -t:BuildModOnly [-p:Configuration=Release|Debug]" />
-        <Message Importance="high" Text="  dotnet msbuild build.proj -t:Build [-p:Configuration=Release|Debug] [-p:NativeMSBuildExe=...] [-p:NativePlatformToolset=v143]" />
-        <Message Importance="high" Text="  dotnet msbuild build.proj -t:Deploy (alias of Build)" />
+        <Message Importance="high" Text="  dotnet msbuild build/Build.proj -t:Setup [-p:FahrenheitDir=...] [-p:FahrenheitRepo=...]" />
+        <Message Importance="high" Text="  dotnet msbuild build/Build.proj -t:BuildModOnly [-p:Configuration=Release|Debug]" />
+        <Message Importance="high" Text="  dotnet msbuild build/Build.proj -t:Build [-p:Configuration=Release|Debug] [-p:NativeMSBuildExe=...] [-p:NativePlatformToolset=v143]" />
+        <Message Importance="high" Text="  dotnet msbuild build/Build.proj -t:Deploy (alias of Build)" />
     </Target>
 
     <Target Name="ValidateInputs">
@@ -188,8 +188,9 @@
         <Error Condition="!Exists('$(Stage1Project)')" Text="Missing Stage1 project: $(Stage1Project)" />
 
         <Message Importance="high" Condition="'$(NativePlatformToolset)' != ''" Text="Using native platform toolset override: $(NativePlatformToolset)" />
-        <Exec Command="&quot;$(NativeMSBuildExe)&quot; &quot;$(Stage0Project)&quot; /p:Configuration=$(Configuration) /p:Platform=Win32$(NativePlatformToolsetArg)" />
+        <Exec Command="dotnet run --file &quot;$(RepoRoot)build/PrepareNativeDependencies.cs&quot; -- &quot;$(FahrenheitDirPath)&quot; $(Configuration)" />
         <Exec Command="&quot;$(NativeMSBuildExe)&quot; &quot;$(Stage1Project)&quot; /p:Configuration=$(Configuration) /p:Platform=Win32$(NativePlatformToolsetArg)" />
+        <Exec Command="&quot;$(NativeMSBuildExe)&quot; &quot;$(Stage0Project)&quot; /p:Configuration=$(Configuration) /p:Platform=Win32$(NativePlatformToolsetArg)" />
     </Target>
 
     <!-- Fahrenheit's managed components are built (and, through their own
