@@ -1,12 +1,146 @@
-using System.Text.Json;
-using System.Text.RegularExpressions;
-using System.Runtime.InteropServices;
+using Microsoft.Win32;
 using Nuke.Common;
+using Nuke.Common.IO;
 using Serilog;
 using static Nuke.Common.Assert;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO.Compression;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 
 internal sealed partial class BuildScript
 {
+
+    void RunTestsIfAny(string configuration)
+    {
+        var projects = new List<string>();
+        var testRoot = Path.Combine(RootDirectory, "tests");
+
+        if (Directory.Exists(testRoot))
+        {
+            projects.AddRange(Directory.EnumerateFiles(testRoot, "*.csproj", SearchOption.AllDirectories));
+        }
+
+        projects.AddRange(Directory.EnumerateFiles(RootDirectory, "*.csproj", SearchOption.TopDirectoryOnly));
+
+        projects = projects
+            .Where(path => Path.GetFileName(path).Contains("test", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (projects.Count == 0)
+        {
+            Log.Information("No test projects found outside .workspace. Skipping tests.");
+            return;
+        }
+
+        foreach (var project in projects)
+        {
+            RunChecked(
+                "dotnet",
+                $"test {Quote(project)} --configuration {Quote(configuration)} --nologo --verbosity {ResolveDotNetCliVerbosity()}",
+                $"Run tests for {Path.GetFileName(project)}");
+        }
+    }
+    void SyncAutomationDocsCore()
+    {
+        var buildDocsPath = ResolvePath("docs/automation.md");
+
+        File.WriteAllText(buildDocsPath, NormalizeLineEndings(GenerateBuildAutomationDocs()));
+
+        Log.Information($"Updated automation docs: {buildDocsPath}");
+    }
+
+    void AssertAutomationDocsUpToDate()
+    {
+        AssertDocsMatchGenerated("docs/automation.md", GenerateBuildAutomationDocs());
+    }
+
+    void AssertDocsMatchGenerated(string relativePath, string expectedContent)
+    {
+        var fullPath = ResolvePath(relativePath);
+        if (!File.Exists(fullPath))
+        {
+            Fail($"Missing generated docs file '{relativePath}'. Run: .\\build.cmd docs-sync");
+        }
+
+        var currentContent = NormalizeLineEndings(File.ReadAllText(fullPath));
+        var normalizedExpected = NormalizeLineEndings(expectedContent);
+        if (!string.Equals(currentContent, normalizedExpected, StringComparison.Ordinal))
+        {
+            Fail($"Generated docs '{relativePath}' are stale. Run: .\\build.cmd docs-sync");
+        }
+    }
+
+    static string NormalizeLineEndings(string content) => content.Replace("\r\n", "\n");
+
+    string GenerateBuildAutomationDocs()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("# Automation Overview");
+        sb.AppendLine();
+        sb.AppendLine("`build.cmd` is the project lifecycle entrypoint.");
+        sb.AppendLine();
+        sb.AppendLine("_Auto-generated from build workflow metadata. Do not edit manually; run `.\\build.cmd docs-sync`._");
+        sb.AppendLine();
+        sb.AppendLine("Quick command discovery:");
+        sb.AppendLine("- `.\\build.cmd help`");
+        sb.AppendLine("- `.\\build.cmd -h <workflow>`");
+        sb.AppendLine("- Bool parameters support both `--flag` and `--no-flag`.");
+        sb.AppendLine("- Global verbosity: `--verbosity|-v quiet|minimal|normal|detailed|diagnostic` (default: `normal`).");
+        sb.AppendLine("- Recommended escalation: `quiet` -> `normal` -> `detailed` -> `diagnostic`.");
+        sb.AppendLine("- Global config path: `--config-path` (shorthand: `-c`).");
+        sb.AppendLine("- Common shorthand: `-c <config-path>`, `-n` (`--dry-run`).");
+        sb.AppendLine("- Agent guidance: use `--verbosity quiet` for routine `.\\build.cmd verify`, `.\\build.cmd build`, and `.\\build.cmd deploy`.");
+        sb.AppendLine();
+
+        foreach (var section in BuildWorkflowSections)
+        {
+            sb.AppendLine($"## {section.Heading} Workflows");
+            sb.AppendLine();
+
+            foreach (var workflow in section.Workflows)
+            {
+                var help = CaptureWorkflowHelpBlock(workflow.Name);
+                AppendWorkflowHelpBlock(sb, ".\\build.cmd", help, "build.cmd");
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    static void AppendWorkflowHelpBlock(StringBuilder sb, string commandPrefix, WorkflowHelpBlock help, string replaceToken)
+    {
+        sb.AppendLine($"- `{commandPrefix} {help.Workflow}`");
+        sb.AppendLine($"  - {help.Purpose}");
+
+        if (help.Parameters.Count > 0)
+        {
+            sb.AppendLine("  - Parameters:");
+            foreach (var parameter in help.Parameters)
+            {
+                sb.AppendLine($"  - {parameter}");
+            }
+        }
+
+        if (help.Examples.Count > 0)
+        {
+            sb.AppendLine("  - Examples:");
+            foreach (var example in help.Examples)
+            {
+                var normalizedExample = example.Replace(replaceToken, commandPrefix, StringComparison.OrdinalIgnoreCase);
+                sb.AppendLine($"  - `{normalizedExample}`");
+            }
+        }
+
+        sb.AppendLine();
+    }
     Target Doctor => _ => _.Executes(RunDoctorCore);
 
     Target Format => _ => _.Executes(RunFormatFixCore);
@@ -14,73 +148,6 @@ internal sealed partial class BuildScript
     Target Lint => _ => _.Executes(() => RunLintCore(RequestedConfiguration));
 
     Target Smoke => _ => _.Executes(() => RunSmokeCore(RequestedConfiguration));
-
-    void RunCleanCore()
-    {
-        if (Purge && !Yes)
-        {
-            Fail("clean --purge is destructive and requires --yes.");
-        }
-
-        var includeAnalysis = Purge || CleanAnalysis;
-        var includeExports = Purge || CleanExports;
-        var includeGameData = Purge || CleanGameData;
-        var includeTools = Purge || CleanToolsRequested;
-        var includeReleaseRoot = Purge;
-
-        var result = new CleanupAccountingResult();
-        Log.Information(
-            $"Starting clean (dry-run={DryRun.ToString().ToLowerInvariant()}, purge={Purge.ToString().ToLowerInvariant()}, analysis={includeAnalysis.ToString().ToLowerInvariant()}, exports={includeExports.ToString().ToLowerInvariant()}, game-data={includeGameData.ToString().ToLowerInvariant()}, purge-tools={includeTools.ToString().ToLowerInvariant()}).");
-
-        // Default clean: cache + artifacts.
-        DeleteDirectoryMaybeWithAccounting(ResolvePath(".workspace/local-build"), result);
-
-        var artifactDirectories = new[]
-        {
-            Path.Combine(RootDirectory, "bin"),
-            Path.Combine(RootDirectory, "obj"),
-            Path.Combine(RootDirectory, "build", "bin"),
-            Path.Combine(RootDirectory, "build", "obj"),
-            Path.Combine(RootDirectory, "tests", "Parry.Tests", "bin"),
-            Path.Combine(RootDirectory, "tests", "Parry.Tests", "obj"),
-            Path.Combine(ResolvePath(FahrenheitDir), "artifacts"),
-            Path.Combine(ResolvePath(".release"), "stage"),
-            Path.Combine(ResolvePath(".release"), "preflight")
-        };
-
-        foreach (var path in artifactDirectories.Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            DeleteDirectoryMaybeWithAccounting(path, result);
-        }
-
-        if (includeReleaseRoot)
-        {
-            DeleteDirectoryMaybeWithAccounting(ResolvePath(".release"), result);
-        }
-
-        if (includeAnalysis)
-        {
-            DeleteDirectoryMaybeWithAccounting(ResolvePath(".workspace/analysis"), result);
-        }
-
-        if (includeExports)
-        {
-            DeleteDirectoryMaybeWithAccounting(ResolvePath(".workspace/discord"), result);
-        }
-
-        if (includeGameData)
-        {
-            DeleteDirectoryMaybeWithAccounting(ResolvePath(".workspace/data"), result);
-        }
-
-        if (includeTools)
-        {
-            DeleteDirectoryMaybeWithAccounting(ResolvePath(".workspace/tools"), result);
-        }
-
-        Log.Information(
-            $"Clean complete. Removed files={result.FilesRemoved}, directories={result.DirectoriesRemoved}, reclaimed={FormatBytes(result.BytesReclaimed)}.");
-    }
 
     void RunDoctorCore()
     {
@@ -201,64 +268,42 @@ internal sealed partial class BuildScript
 
     void ValidateJsonConfigsCore()
     {
-        ValidateManifestJson();
+        ValidateModProjectMetadata();
         ValidateLanguageJson();
         Log.Information("JSON configuration checks passed.");
     }
 
-    void ValidateManifestJson()
+    void ValidateGeneratedManifest(string path)
     {
-        var manifest = ManifestPath.ToString();
-        if (!File.Exists(manifest))
-        {
-            Fail($"Missing manifest file: {manifest}");
-        }
-
-        using var doc = JsonDocument.Parse(File.ReadAllText(manifest));
-        var root = doc.RootElement;
-        if (root.ValueKind != JsonValueKind.Object)
-        {
-            Fail("Manifest root must be a JSON object.");
-        }
-
-        string[] requiredStringFields = ["Id", "Name", "Desc", "Authors", "Version", "Link", "Flags"];
-        foreach (var field in requiredStringFields)
-        {
-            if (!root.TryGetProperty(field, out var value) || value.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(value.GetString()))
-            {
-                Fail($"Manifest validation failed: '{field}' must be a non-empty string.");
-            }
-        }
-
-        var version = root.GetProperty("Version").GetString() ?? string.Empty;
-        if (!Regex.IsMatch(version, @"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z\.-]+)?$"))
-        {
-            Fail($"Manifest validation failed: Version '{version}' is not SemVer-like.");
-        }
-
-        ValidateManifestStringArray(root, "Dependencies");
-        ValidateManifestStringArray(root, "LoadAfter");
+        using var manifest = JsonDocument.Parse(File.ReadAllText(path));
+        foreach (var (field, expected) in ReadModManifestMetadata())
+            if (!manifest.RootElement.TryGetProperty(field, out var value) || value.ValueKind != JsonValueKind.String || value.GetString() != expected)
+                Fail($"Generated manifest field '{field}' does not match the mod project.");
     }
 
-    static void ValidateManifestStringArray(JsonElement root, string propertyName)
+    void ValidateModProjectMetadata()
     {
-        if (!root.TryGetProperty(propertyName, out var value))
-        {
-            return;
-        }
+        var metadata = ReadModManifestMetadata();
+        if (!Regex.IsMatch(metadata["Version"], @"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z\.-]+)?$"))
+            Fail($"Project Version '{metadata["Version"]}' is not SemVer-like.");
+    }
 
-        if (value.ValueKind != JsonValueKind.Array)
+    Dictionary<string, string> ReadModManifestMetadata()
+    {
+        var project = System.Xml.Linq.XDocument.Load(RootDirectory / "Fahrenheit.Mods.Parry.csproj");
+        var properties = new Dictionary<string, string>
         {
-            Fail($"Manifest validation failed: '{propertyName}' must be an array.");
-        }
-
-        foreach (var item in value.EnumerateArray())
+            ["Id"] = "AssemblyName", ["Name"] = "AssemblyTitle", ["Desc"] = "Description",
+            ["Authors"] = "Authors", ["Version"] = "Version", ["Link"] = "RepositoryUrl", ["Flags"] = "FhManifestFlags"
+        };
+        var result = new Dictionary<string, string>();
+        foreach (var (field, property) in properties)
         {
-            if (item.ValueKind != JsonValueKind.String)
-            {
-                Fail($"Manifest validation failed: '{propertyName}' entries must be strings.");
-            }
+            var value = project.Descendants(property).SingleOrDefault()?.Value;
+            if (string.IsNullOrWhiteSpace(value)) Fail($"Mod project property '{property}' must not be empty.");
+            result[field] = value!;
         }
+        return result;
     }
 
     // Fahrenheit loads localization from lang/{module type name}/{lang id}.json, one
@@ -379,17 +424,25 @@ internal sealed partial class BuildScript
         AssertFilesExist(
             localOutput,
             "fhparry.dll",
-            "fhparry.manifest.json",
-            Path.Combine("mappings", "runtime", "ffx-mappings.json"),
-            Path.Combine("mappings", "runtime", "ffx-mappings.us.json"));
+            Path.Combine("resources", "mappings", "ffx-mappings.us.json"));
 
         var deployModOutput = Path.Combine(ResolvePath(FahrenheitDir), "artifacts", "deploy", deployConfig, "mods", ModId);
         AssertFilesExist(
             deployModOutput,
             "fhparry.dll",
             "fhparry.manifest.json",
-            Path.Combine("mappings", "runtime", "ffx-mappings.json"),
-            Path.Combine("mappings", "runtime", "ffx-mappings.us.json"));
+            Path.Combine("resources", "mappings", "ffx-mappings.us.json"));
+
+        foreach (var root in new[] { localOutput, deployModOutput })
+        {
+            foreach (var locale in new[] { "us", "de", "fr", "it", "sp", "jp", "ch", "kr" })
+                AssertFilesExist(root, Path.Combine("resources", "mappings", $"ffx-mappings.{locale}.json"));
+            if (Directory.Exists(Path.Combine(root, "mappings", "runtime")) ||
+                File.Exists(Path.Combine(root, "resources", "mappings", "ffx-mappings.json")))
+                Fail("Smoke check failed: obsolete mapping payload remains. Run build.cmd clean and rebuild.");
+        }
+
+        ValidateGeneratedManifest(Path.Combine(deployModOutput, "fhparry.manifest.json"));
 
         var stage0 = Path.Combine(ResolvePath(FahrenheitDir), "artifacts", "deploy", deployConfig, "bin", "fhstage0.exe");
         if (!File.Exists(stage0))

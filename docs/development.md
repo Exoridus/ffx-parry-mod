@@ -13,13 +13,6 @@ Required for native Fahrenheit builds:
   - `Desktop development with C++`
 - `vcpkg integrate install`
 
-Optional (data workflows only):
-- Java 21+
-- Maven (`mvn`)
-
-Optional (reverse engineering workflows):
-- Ghidra (managed via `.\tools.cmd ghidra-setup`)
-
 ## Quick Start
 
 ```bash
@@ -56,7 +49,7 @@ Quality:
 .\build.cmd lint [--configuration Debug|Release] [--config-path .\path\to\config.local.json]
 .\build.cmd smoke [--configuration Debug|Release] [--config-path .\path\to\config.local.json]
 .\build.cmd verify [--configuration Debug|Release] [--config-path .\path\to\config.local.json] [--repo owner/repo]
-.\build.cmd clean [--analysis] [--exports] [--game-data] [--purge-tools]
+.\build.cmd clean [--dry-run]
 .\build.cmd clean --purge --yes
 ```
 
@@ -69,14 +62,7 @@ Build and deploy:
 .\build.cmd start [--game-dir "C:\\Path\\To\\Game"] [--elevated|--no-elevated]
 ```
 
-Reverse engineering tooling:
-
-```bash
-.\tools.cmd help
-.\tools.cmd ghidra-setup
-.\tools.cmd ghidra-start
-.\tools.cmd discord-sync --guild 612363389003366405
-```
+Research, Ghidra, game-data extraction and community sync are maintained in the sibling `ffx-knowledge-base` repository. See [Data Pipeline](data-pipeline.md).
 
 ## Parry Timing Determinism Checks
 
@@ -85,6 +71,14 @@ dotnet test tests/Parry.Tests/Parry.Tests.csproj -c Debug
 ```
 
 The test suite includes simulation-time pacing checks for 1x/2x/4x-equivalent deltas and variable frame pacing.
+
+## Build configuration
+
+The root `NuGet.config` is the only package-source configuration. Package source mapping limits the local feeds to Fahrenheit packages, so public build dependencies restore before those feeds exist. Run `build.cmd setup` to create matching local Fahrenheit packages before evaluating the mod project.
+
+`global.json` stays in the root because the .NET SDK discovers it there. The project metadata in `Fahrenheit.Mods.Parry.csproj` is the source for the SDK-generated deployment manifest; no handwritten root manifest is required.
+
+Build helpers are C#: settings migration runs inside the build assembly, and `PrepareNativeDependencies.cs` runs as a .NET 10 file-based app from `build/Build.proj`. Batch files remain thin Windows entrypoints.
 
 ## Local Config
 
@@ -96,13 +90,8 @@ Canonical schema keys are strict and case-sensitive when written by the build to
 - `GameDir` (game install directory containing `FFX.exe`)
 - `AutoDeploy` (`true`/`false`/`null`; `null` prompts once in interactive mode)
 - `DeployPreservePaths` (array of deploy-preserved paths under `<GameDir>\fahrenheit` and/or absolute paths)
-- `VisionApiUrl`
-- `VisionApiKey`
-- `VisionModel`
-- `FetchRetries`
-- `DiscordToken`
 
-Legacy keys are still accepted for compatibility (`BuildTarget`, `InstallPath`, `PreservePaths`, `OpenApiUrl`, `OpenApiKey`, `OpenApiModel`, `FetchRetryCount`) but canonical keys are written back on save.
+Retired research settings are ignored and preserved on save. New configurations only need the build and deploy keys above.
 
 `.\build.cmd build` can override deploy behavior per run:
 
@@ -113,41 +102,6 @@ Build and deploy workflows always operate on full payloads to reduce stale artif
 Deploy behavior mirrors artifact state into the selected deploy target and preserves entries from `DeployPreservePaths`.
 
 Use `--dry-run` with `build` or `deploy` to preview sync actions without writing files.
-
-`.\tools.cmd discord-sync` reads Discord auth and enrichment settings from `.workspace/config.local.json` and workflow-level sync filters from `.workspace/discord/config.local.json`.
-
-Recommended shape for `.workspace/config.local.json`:
-
-```json
-{
-  "Configuration": "Release",
-  "GameDir": "",
-  "AutoDeploy": null,
-  "DeployPreservePaths": ["mods/loadorder", "saves"],
-  "VisionApiUrl": "",
-  "VisionApiKey": "",
-  "VisionModel": "",
-  "FetchRetries": 2,
-  "DiscordToken": ""
-}
-```
-
-Recommended shape for `.workspace/discord/config.local.json`:
-
-```json
-{
-  "Blacklist": [
-    "123456789012345678"
-  ],
-  "Guilds": [
-    "612363389003366405"
-  ]
-}
-```
-
-Config keys are strict and case-sensitive.
-
-The Discord sync workflow exports immutable raw channel JSON into `.workspace/discord`, discovers channels and threads automatically, and defaults to full-or-delta behavior per channel. Voice channels, thread discovery, media downloads, media reuse, and advisory rate-limit handling are always enabled for consistency. Assets are stored per guild at `<Guild Root>\\Media`. OCR outputs are sidecars (`*.ocr.txt`) and the Tesseract pre-pass only runs on larger images (currently max dimension >= 640px). Fetched text/code is stored as `*.src.txt`, per-channel reference indexes are stored as `*.refs.jsonl`, and per-server metadata is written to `server.refs.json`. A local `Blacklist` array can exclude known inaccessible or unsupported channel/thread IDs before sync starts, and future inaccessible IDs are persisted back into that same local config automatically. Use `.\tools.cmd discord-sync --guild <serverId> --full` periodically to reconcile edits/deletions that delta mode cannot recover.
 
 ## Commit Workflows
 
@@ -161,37 +115,26 @@ The Discord sync workflow exports immutable raw channel JSON into `.workspace/di
 ## Release Workflows
 
 ```bash
-.\build.cmd release-ready --repo Exoridus/fahrenheit-parry-mod
-.\build.cmd release-bump --bump patch --repo Exoridus/fahrenheit-parry-mod
+.\build.cmd mod-pack --sdk local --tag v0.0.0-dev --out-dir .release --full true
+.\build.cmd release-bump --bump patch --repo Exoridus/ffx-parry-mod
 git push origin main
-gh workflow run Release -f version=v1.2.3
+gh workflow run release.yml -f version=v1.2.3 -f sdk=local -f dry_run=true
 ```
 
-`release-bump` updates version/changelog, pins `fahrenheit.release.ref`, and creates the release commit. It does **not** create a tag.
+`release-bump` updates project metadata/changelog, pins `fahrenheit.release.ref`, and creates the release commit. It does **not** create a tag.
 
 The tag is created by the Release workflow after a green release build, so a
 failed build never burns a version number: fix the problem, push again, and
-dispatch the same version. Add `-f dry-run=true` to build and package without
+dispatch the same version. Add `-f dry_run=true` to build and package without
 publishing anything.
 
 ## CI/CD Summary
 
-- `push`/`pull_request` to `main`: `.github/workflows/ci.yml`
-  - commit subject validation (PR)
-  - `Verify` job (`Debug`)
-  - `Release Preflight` job: Release build, packaging, asset-size check and
-    release notes against a throwaway tag -- the same steps the release runs,
-    so a green CI actually predicts a green release
-- manual dispatch: `.github/workflows/release.yml`
-  - validates the version input against the manifest and rejects existing tags
-  - full release build
-  - release packaging (`full` and `mod-only` ZIP)
-  - SHA256 outputs
-  - generated release notes
-  - creates the tag and publishes the release as the final step
-
-Both workflows share `.github/actions/setup-build` for toolchain setup, which is
-what keeps them from drifting apart.
+- CI verifies the Debug mod payload and tests, then builds tested Release mod-only/full development packages.
+- Parry commit subjects are checked on pull requests.
+- Release validates the requested version and tag, runs Debug verification and packages Release using the same C# entry points.
+- Local SDK packages are restricted to dry-runs. Public prereleases require the official SDK and matching official host.
+- Both ZIPs have SHA256 checksums and provenance. A successful publish job creates the tag after verification.
 
 ## References
 

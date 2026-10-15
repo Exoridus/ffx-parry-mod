@@ -5,7 +5,7 @@ namespace Fahrenheit.Mods.Parry;
 ///
 ///     Centralises every state-gate rule so the parry input flow can be unit-tested
 ///     without instantiating <c>ParryModule</c> (which is FFX-coupled via the
-///     <c>FhMethodHandle</c> hook installs in its constructor).
+///     <c>FhCallHandle</c> hook installs in its constructor).
 ///
 ///     Every method is pure, allocation-free, and side-effect-free. Callers in
 ///     <c>ParryModule.Combat.cs</c> and <c>ParryModule.cs</c> apply the side effects

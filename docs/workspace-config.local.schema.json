@@ -1,13 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Exoridus/fahrenheit-parry-mod/docs/workspace-config.local.schema.json",
+  "$id": "https://github.com/Exoridus/ffx-parry-mod/docs/workspace-config.local.schema.json",
   "title": "Workspace Local Config",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "Configuration": {
       "type": "string",
-      "enum": ["Debug", "Release"],
+      "enum": [
+        "Debug",
+        "Release"
+      ],
       "description": "Default build configuration for build workflows."
     },
     "GameDir": {
@@ -15,7 +18,10 @@
       "description": "Absolute path to game install directory containing FFX.exe."
     },
     "AutoDeploy": {
-      "type": ["boolean", "null"],
+      "type": [
+        "boolean",
+        "null"
+      ],
       "description": "Automatic deploy behavior after build. Null means first-time interactive prompt."
     },
     "DeployPreservePaths": {
@@ -27,24 +33,29 @@
     },
     "VisionApiUrl": {
       "type": "string",
-      "description": "OpenAI-compatible API base URL for local OCR vision calls."
+      "description": "Retired research setting. Ignored by the mod build and preserved on save.",
+      "deprecated": true
     },
     "VisionApiKey": {
       "type": "string",
-      "description": "API key or environment variable reference in $env:VAR format."
+      "description": "Retired research setting. Ignored by the mod build and preserved on save.",
+      "deprecated": true
     },
     "VisionModel": {
       "type": "string",
-      "description": "Model id for local OCR vision passes."
+      "description": "Retired research setting. Ignored by the mod build and preserved on save.",
+      "deprecated": true
     },
     "FetchRetries": {
       "type": "integer",
       "minimum": 0,
-      "description": "Number of additional retries for remote source fetches."
+      "description": "Retired research setting. Ignored by the mod build and preserved on save.",
+      "deprecated": true
     },
     "DiscordToken": {
       "type": "string",
-      "description": "Discord token or environment variable reference in $env:VAR format."
+      "description": "Retired research setting. Ignored by the mod build and preserved on save.",
+      "deprecated": true
     }
   },
   "required": [
@@ -56,14 +67,12 @@
   "examples": [
     {
       "Configuration": "Release",
-      "GameDir": "C:\\Games\\Final Fantasy X-X2 - HD Remaster",
+      "GameDir": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\FINAL FANTASY FFX&FFX-2 HD Remaster",
       "AutoDeploy": null,
-      "DeployPreservePaths": ["mods/loadorder", "saves"],
-      "VisionApiUrl": "http://127.0.0.1:1234/v1",
-      "VisionApiKey": "$env:LM_API_TOKEN",
-      "VisionModel": "qwen3.5-35b-a3b",
-      "FetchRetries": 2,
-      "DiscordToken": "$env:DISCORD_TOKEN"
+      "DeployPreservePaths": [
+        "mods/loadorder",
+        "saves"
+      ]
     }
   ]
 }

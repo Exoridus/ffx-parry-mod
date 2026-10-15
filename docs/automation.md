@@ -13,7 +13,6 @@ Quick command discovery:
 - Global config path: `--config-path` (shorthand: `-c`).
 - Common shorthand: `-c <config-path>`, `-n` (`--dry-run`).
 - Agent guidance: use `--verbosity quiet` for routine `.\build.cmd verify`, `.\build.cmd build`, and `.\build.cmd deploy`.
-- Local research/tooling workflows moved to `tools.cmd` (`tools.cmd help`).
 
 ## Core Workflows
 
@@ -23,19 +22,14 @@ Quick command discovery:
   - `.\build.cmd setup`
 
 - `.\build.cmd clean`
-  - Default clean removes cache + build artifacts. Add explicit flags for analysis/exports/game-data/purge-tools or use --purge for full local cleanup.
+  - Remove generated mod and host build artifacts. Add --purge --yes to also remove local release output.
   - Parameters:
-  - --analysis (optional).
-  - --exports (optional).
-  - --game-data (optional).
-  - --purge-tools (optional).
   - --purge (optional, requires --yes).
   - --yes (required with --purge).
   - --dry-run (optional).
   - Examples:
   - `.\build.cmd clean`
-  - `.\build.cmd clean --analysis`
-  - `.\build.cmd clean --exports --game-data`
+  - `.\build.cmd clean --dry-run`
   - `.\build.cmd clean --purge --yes`
 
 - `.\build.cmd auto-deploy`
@@ -45,7 +39,7 @@ Quick command discovery:
   - --refresh-game-dir (optional).
   - Examples:
   - `.\build.cmd auto-deploy`
-  - `.\build.cmd auto-deploy --game-dir "C:\Games\Final Fantasy X-X2 - HD Remaster"`
+  - `.\build.cmd auto-deploy --game-dir "C:\Program Files (x86)\Steam\steamapps\common\FINAL FANTASY FFX&FFX-2 HD Remaster"`
 
 - `.\build.cmd doctor`
   - Diagnose local toolchain and environment state.
@@ -116,6 +110,34 @@ Quick command discovery:
   - Examples:
   - `.\build.cmd start`
 
+## Distribution Workflows
+
+- `.\build.cmd mod-build`
+  - Build only the mod with isolated SDK feeds; never deploy.
+  - Parameters:
+  - --sdk local|official
+  - --configuration Debug|Release
+  - Examples:
+  - `.\build.cmd mod-build`
+
+- `.\build.cmd mod-verify`
+  - Validate the SDK payload and run runtime/package tests.
+  - Parameters:
+  - --sdk local|official
+  - --configuration Debug|Release
+  - Examples:
+  - `.\build.cmd mod-verify`
+
+- `.\build.cmd mod-pack`
+  - Create a mod ZIP rooted at the mod ID, SHA256 and provenance; --full also builds/packages the matching host.
+  - Parameters:
+  - --sdk local|official
+  - --tag vX.Y.Z[-suffix]
+  - --out-dir path
+  - --full
+  - Examples:
+  - `.\build.cmd mod-pack --full`
+
 ## Release Workflows
 
 - `.\build.cmd release-bump`
@@ -135,13 +157,22 @@ Quick command discovery:
   - `.\build.cmd release-ready`
 
 - `.\build.cmd release-pack`
-  - Package built release payloads into ZIP archives.
+  - Build, test and package Release mod/full archives using the shared distribution workflow.
   - Parameters:
   - --tag vX.Y.Z (required).
-  - --deploy-dir <path> (optional).
+  - --sdk local|official (optional).
   - --out-dir <path> (optional).
   - Examples:
   - `.\build.cmd release-pack --tag v0.0.1`
+
+- `.\build.cmd release-check-assets`
+  - Check the packaged ZIPs against MAX_FULL_ZIP_MB (default 200) and MAX_MOD_ZIP_MB (default 64).
+  - Parameters:
+  - --tag vX.Y.Z (required).
+  - --out-dir <path> (optional).
+  - --mod-id <id> (optional).
+  - Examples:
+  - `.\build.cmd release-check-assets --tag v0.0.1`
 
 - `.\build.cmd release-notes`
   - Generate release-notes markdown/text for a tag.
@@ -177,7 +208,7 @@ Quick command discovery:
 ## Utility Workflows
 
 - `.\build.cmd docs-sync`
-  - Regenerate docs/automation.md and docs/tools-automation.md from workflow metadata.
+  - Regenerate docs/automation.md from workflow metadata.
   - Examples:
   - `.\build.cmd docs-sync`
 

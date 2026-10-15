@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,95 +14,47 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  DOTNET_VERSION: "10.0.x"
-
 jobs:
-  verify:
-    name: Verify
+  mod:
+    name: ${{ matrix.configuration == 'Debug' && 'Verify' || 'Release' }}
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Debug, Release]
     steps:
-      - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           fetch-depth: 0
-
-      - name: Setup build environment
-        uses: ./.github/actions/setup-build
+      - uses: ./.github/actions/setup-build
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Validate commit messages (PR)
-        if: github.event_name == 'pull_request'
+          full-build: ${{ matrix.configuration == 'Release' }}
+      - name: Validate Parry commit subjects
+        if: github.event_name == 'pull_request' && matrix.configuration == 'Debug' && hashFiles('build/Build.csproj') != ''
         shell: cmd
-        run: build.cmd commit-check --range "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
-
-      - name: CLI sanity
+        env:
+          COMMIT_BASE: ${{ github.event.pull_request.base.sha }}
+          COMMIT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: build.cmd commit-check --range "%COMMIT_BASE%..%COMMIT_HEAD%"
+      - name: Verify Debug payload and tests
+        if: matrix.configuration == 'Debug'
         shell: cmd
-        run: |
-          build.cmd help
-          build.cmd -h clean
-          build.cmd clean --dry-run
-          build.cmd clean --purge --yes --dry-run
-          tools.cmd help
-
-      - name: Verify
+        run: build.cmd mod-verify --sdk local --configuration Debug
+      - name: Build and verify mod + full development packages
+        if: matrix.configuration == 'Release'
         shell: cmd
-        run: build.cmd verify --configuration Debug --repo "${{ github.repository }}"
-
-      - name: Upload debug deploy output (PR)
-        if: github.event_name == 'pull_request'
+        run: build.cmd mod-pack --sdk local --configuration Release --tag v0.0.0-ci --out-dir .release --full true
+      - name: Upload installable development packages
+        if: matrix.configuration == 'Release'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: deploy-dbg-${{ github.event.pull_request.number }}
-          path: .workspace/fahrenheit/artifacts/deploy/dbg
-          if-no-files-found: warn
-
-  # Runs the same steps the Release workflow runs -- Release build, packaging,
-  # asset-size validation and release notes -- against a throwaway tag. Without
-  # this, a green CI said nothing about whether a release would succeed, because
-  # packaging was only ever exercised by the tagged release build itself.
-  release_preflight:
-    name: Release Preflight
-    runs-on: windows-latest
-    env:
-      PREFLIGHT_TAG: v0.0.0-ci
-    steps:
-      - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-
-      - name: Setup build environment
-        uses: ./.github/actions/setup-build
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Full release build
-        shell: cmd
-        run: build.cmd build --configuration Release --repo "${{ github.repository }}"
-
-      - name: Package release archives
-        shell: cmd
-        run: build.cmd release-pack --tag "%PREFLIGHT_TAG%" --deploy-dir ".workspace\fahrenheit\artifacts\deploy\rel" --out-dir ".release"
-
-      - name: Validate release asset sizes
-        shell: pwsh
-        env:
-          MAX_FULL_ZIP_MB: "200"
-          MAX_MOD_ZIP_MB: "64"
-        run: ./.github/scripts/Assert-ReleaseAssets.ps1 -Tag $env:PREFLIGHT_TAG -Directory ".release"
-
-      - name: Generate release notes
-        shell: cmd
-        run: build.cmd release-notes --tag "%PREFLIGHT_TAG%" --repo "${{ github.repository }}" --out ".release\release-notes.txt"
-
-      - name: Assert release notes list commits
-        shell: pwsh
-        run: |
-          $notes = Get-Content ".release/release-notes.txt" -Raw
-          if ($notes -match '(?m)^- Initial release$') {
-            throw "Release notes fell back to 'Initial release'; the commit range did not resolve."
-          }
-          Write-Host "Release notes contain a resolved commit list."
+          name: development-packages-${{ github.sha }}
+          path: |
+            .release/*.zip
+            .release/*.sha256
+            .release/*.provenance.json
+            .release/release-notes.md
+          if-no-files-found: error
+          include-hidden-files: true
+          compression-level: 0
+          retention-days: 14

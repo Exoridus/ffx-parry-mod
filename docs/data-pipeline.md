@@ -1,6 +1,6 @@
 # Data Pipeline Guide
 
-The mod ships locale-specific mapping bundles under `mappings/runtime/` that
+The mod ships locale-specific mapping bundles under `resources/mappings/` that
 are loaded at runtime to resolve command / monster / battle / event display
 text. The extraction and parsing of FFX game data that ultimately produces
 that reference data is **no longer owned by this repo**. See
@@ -31,21 +31,16 @@ example queries.
 
 ## Runtime mapping bundles (this repo)
 
-This repo still owns the runtime bundle format under `mappings/runtime/`:
+This repo still owns the runtime bundle format under `resources/mappings/`:
 
-- `mappings/runtime/ffx-mappings.json` — US alias
-- `mappings/runtime/ffx-mappings.{locale}.json` — per-locale bundle
+- `resources/mappings/ffx-mappings.{locale}.json` — per-locale bundle
   (`us`, `de`, `fr`, `it`, `sp`, `jp`, `ch`, `kr`)
 
 These bundles combine commands, auto-abilities, key items, monsters, battles,
 and events into a single loadable file per locale. They are shipped with the
-mod via `Fahrenheit.Mods.Parry.csproj`:
+mod by Fahrenheit.Sdk's standard `resources/**` packaging rule.
 
-```xml
-<None Include="mappings/runtime/*.json" CopyToOutputDirectory="Always" />
-```
-
-And loaded at runtime by `ParryModule.DataMapping.cs` for display-name
+They are loaded at runtime by `ParryModule.DataMapping.cs` for display-name
 resolution in the overlay and debug UI.
 
 ## Bundle regeneration
@@ -60,8 +55,8 @@ build.cmd build-mod-runtime-bundles
 ```
 
 The workflow reads exclusively from pipeline-owned canonical outputs and
-writes `mappings/runtime/ffx-mappings.<locale>.json` for all 8 locales,
-plus `ffx-mappings.json` (US alias) and `ffx-mappings.provenance.json`.
+writes `resources/mappings/ffx-mappings.<locale>.json` for all 8 locales,
+plus `ffx-mappings.provenance.json`.
 
 Input sources per runtime-bundle domain:
 
@@ -79,7 +74,7 @@ inside its family directory. The `Battles`/`Events` inputs are no longer
 frozen snapshots: `build.cmd extract-script-text` produces all 8 locales
 under `canonical/ffx/scripts/text/`.
 
-Do not hand-edit `mappings/runtime/` directly. Run the generator instead.
+Do not hand-edit `resources/mappings/` directly. Run the generator instead.
 
 The old `mappings/source/` tree that previously lived in this repo was
 deleted once the pipeline producer moved onto canonical outputs.
@@ -87,6 +82,6 @@ deleted once the pipeline producer moved onto canonical outputs.
 ## Notes
 
 - Data extraction/parsing is not required to build or run the mod; the
-  runtime bundles in `mappings/runtime/` are sufficient.
+  runtime bundles in `resources/mappings/` are sufficient.
 - Mod releases consume the pre-generated JSON bundles; no re-parsing is
   performed at build time.

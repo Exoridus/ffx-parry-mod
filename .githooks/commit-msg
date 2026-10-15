@@ -2,4 +2,4 @@
 REPO_ROOT=$(git rev-parse --show-toplevel)
 REPO_ROOT_WIN=$(cygpath -w "$REPO_ROOT" 2>/dev/null || echo "$REPO_ROOT")
 COMMIT_FILE_WIN=$(cygpath -w "$1" 2>/dev/null || echo "$1")
-cmd //c "$REPO_ROOT_WIN\\build.cmd" commit-check --commitfile "$COMMIT_FILE_WIN"
+cmd //c "$REPO_ROOT_WIN\\build.cmd" commit-check --commit-file "$COMMIT_FILE_WIN"

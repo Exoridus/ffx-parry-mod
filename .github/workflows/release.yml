@@ -1,107 +1,100 @@
 name: Release
 
-# The tag is an OUTPUT of a successful release build, not its trigger.
-#
-# Previously this workflow ran on `push: tags: [v*]`, so a failing release build
-# left the tag already published. Because tags are immutable, the only way out
-# was to burn the next patch number. Now the run is dispatched with the intended
-# version, and the tag is created in the final step -- if anything before it
-# fails, no tag exists and the same version can simply be dispatched again.
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag to release (e.g. v0.5.2). Must not already exist.'
-        required: true
+        description: 'Version tag matching the project, e.g. v0.1.0'
         type: string
+        required: true
+      sdk:
+        description: 'Official is required for public releases; local is development dry-run only.'
+        type: choice
+        options: [official, local]
+        default: official
       dry_run:
-        description: 'Build and package without creating the tag or the release.'
-        required: false
+        description: 'Build and upload artifacts without creating a release or tag.'
         type: boolean
-        default: false
+        default: true
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-${{ inputs.version }}
   cancel-in-progress: false
 
-env:
-  DOTNET_VERSION: "10.0.x"
-
 jobs:
-  release:
-    name: Release Build
+  package:
+    if: github.ref == 'refs/heads/main'
     runs-on: windows-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           fetch-depth: 0
           fetch-tags: true
-
-      - name: Validate version input
-        shell: pwsh
-        run: |
-          $version = '${{ inputs.version }}'
-          if ($version -notmatch '^v\d+\.\d+\.\d+$') {
-            throw "Version must look like v1.2.3, got '$version'."
-          }
-          git rev-parse -q --verify "refs/tags/$version" > $null 2>&1
-          if ($LASTEXITCODE -eq 0) {
-            throw "Tag $version already exists. Tags are immutable; pick the next version."
-          }
-          $manifest = (Get-Content fhparry.manifest.json -Raw | ConvertFrom-Json).version
-          if ("v$manifest" -ne $version) {
-            throw "Manifest version is $manifest but the release was dispatched as $version. Run build.cmd release-bump first."
-          }
-          Write-Host "Releasing $version from $(git rev-parse --short HEAD)."
-
-      - name: Setup build environment
-        uses: ./.github/actions/setup-build
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Full release build
-        shell: cmd
-        run: build.cmd build --configuration Release --repo "${{ github.repository }}"
-
-      - name: Package release archives
-        shell: cmd
-        run: build.cmd release-pack --tag "${{ inputs.version }}" --deploy-dir ".workspace\fahrenheit\artifacts\deploy\rel" --out-dir ".release"
-
-      - name: Validate release asset sizes
+      - name: Validate release request
         shell: pwsh
         env:
-          MAX_FULL_ZIP_MB: "200"
-          MAX_MOD_ZIP_MB: "64"
-        run: ./.github/scripts/Assert-ReleaseAssets.ps1 -Tag "${{ inputs.version }}" -Directory ".release"
-
-      - name: Generate release notes
-        shell: cmd
-        run: build.cmd release-notes --tag "${{ inputs.version }}" --repo "${{ github.repository }}" --out ".release\release-notes.txt"
-
-      - name: Upload artifacts (dry run)
-        if: inputs.dry_run
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_SDK: ${{ inputs.sdk }}
+          RELEASE_DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if ($env:RELEASE_VERSION -notmatch '^v\d+\.\d+\.\d+$') { throw 'Expected vX.Y.Z.' }
+          $projects = @(Get-ChildItem -Filter 'Fahrenheit.Mods.*.csproj')
+          if ($projects.Count -ne 1) { throw 'Expected one mod project.' }
+          [xml]$metadata = Get-Content $projects[0].FullName -Raw
+          $version = @($metadata.Project.PropertyGroup.Version | Where-Object { $_ })
+          if ($version.Count -ne 1 -or "v$($version[0])" -ne $env:RELEASE_VERSION) { throw 'Tag must match project Version.' }
+          if ($env:RELEASE_DRY_RUN -ne 'true' -and $env:RELEASE_SDK -ne 'official') { throw 'Public distribution requires the official SDK.' }
+          git show-ref --verify --quiet "refs/tags/$env:RELEASE_VERSION"
+          if ($LASTEXITCODE -eq 0) { throw 'Tag already exists; release tags are immutable.' }
+          if ($LASTEXITCODE -ne 1) { throw 'Failed to check the release tag.' }
+          $global:LASTEXITCODE = 0
+      - uses: ./.github/actions/setup-build
         with:
-          name: release-dryrun-${{ inputs.version }}
-          path: .release
+          full-build: ${{ inputs.sdk == 'local' }}
+      - name: Verify Debug payload and tests
+        shell: cmd
+        run: build.cmd mod-verify --sdk local --configuration Debug
+      - name: Build verified Release packages
+        shell: cmd
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_SDK: ${{ inputs.sdk }}
+        run: build.cmd mod-pack --sdk "%RELEASE_SDK%" --configuration Release --tag "%RELEASE_VERSION%" --out-dir .release --full true
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-packages
+          path: |
+            .release/*.zip
+            .release/*.sha256
+            .release/*.provenance.json
+            .release/release-notes.md
           if-no-files-found: error
-
-      # Creates the tag as part of publishing, from the commit this run built.
-      - name: Publish release
-        if: ${{ !inputs.dry_run }}
+          include-hidden-files: true
+          compression-level: 0
+  publish:
+    if: ${{ !inputs.dry_run && inputs.sdk == 'official' }}
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: release-packages
+          path: .release
+      - name: Publish experimental release after successful verification
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v2
         with:
           tag_name: ${{ inputs.version }}
           target_commitish: ${{ github.sha }}
-          body_path: .release/release-notes.txt
+          prerelease: true
+          body_path: .release/release-notes.md
+          generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
-            .release/fahrenheit-full-${{ inputs.version }}.zip
-            .release/fhparry-mod-${{ inputs.version }}.zip
-            .release/fahrenheit-full-${{ inputs.version }}.zip.sha256
-            .release/fhparry-mod-${{ inputs.version }}.zip.sha256
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            .release/*.zip
+            .release/*.sha256
+            .release/*.provenance.json
