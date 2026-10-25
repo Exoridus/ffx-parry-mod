@@ -37,8 +37,7 @@ The legacy `map-import` / `map-build` workflow (previously `build/Build.Data.cs`
 was removed as part of the pipeline-vs-mod boundary cleanup. The canonical
 FFX data extraction, parsing, and per-locale JSON generation now lives in
 the sibling `ffx-knowledge-base` repo — see
-[`docs/data-pipeline.md`](data-pipeline.md) and
-[`REPO_BOUNDARY.md`](../REPO_BOUNDARY.md) for the split.
+`docs/mods/parry/data-pipeline.md` there for the split.
 
 The `resources/mappings/ffx-mappings.{locale}.json` bundles are the
 runtime-loaded format consumed by `ParryModule.DataMapping.cs`. The

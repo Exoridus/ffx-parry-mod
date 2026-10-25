@@ -16,17 +16,19 @@ on:
         description: 'Build and upload artifacts without creating a release or tag.'
         type: boolean
         default: true
+  push:
+    tags: ['v*.*.*']
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ inputs.version }}
+  group: release-${{ inputs.version || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   package:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -36,9 +38,10 @@ jobs:
       - name: Validate release request
         shell: pwsh
         env:
-          RELEASE_VERSION: ${{ inputs.version }}
-          RELEASE_SDK: ${{ inputs.sdk }}
-          RELEASE_DRY_RUN: ${{ inputs.dry_run }}
+          RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+          RELEASE_SDK: ${{ inputs.sdk || 'official' }}
+          RELEASE_EVENT: ${{ github.event_name }}
+          RELEASE_DRY_RUN: ${{ github.event_name == 'push' && 'false' || inputs.dry_run }}
         run: |
           if ($env:RELEASE_VERSION -notmatch '^v\d+\.\d+\.\d+$') { throw 'Expected vX.Y.Z.' }
           $projects = @(Get-ChildItem -Filter 'Fahrenheit.Mods.*.csproj')
@@ -47,9 +50,14 @@ jobs:
           $version = @($metadata.Project.PropertyGroup.Version | Where-Object { $_ })
           if ($version.Count -ne 1 -or "v$($version[0])" -ne $env:RELEASE_VERSION) { throw 'Tag must match project Version.' }
           if ($env:RELEASE_DRY_RUN -ne 'true' -and $env:RELEASE_SDK -ne 'official') { throw 'Public distribution requires the official SDK.' }
-          git show-ref --verify --quiet "refs/tags/$env:RELEASE_VERSION"
-          if ($LASTEXITCODE -eq 0) { throw 'Tag already exists; release tags are immutable.' }
-          if ($LASTEXITCODE -ne 1) { throw 'Failed to check the release tag.' }
+          if ($env:RELEASE_EVENT -eq 'push') {
+            git merge-base --is-ancestor HEAD origin/main
+            if ($LASTEXITCODE -ne 0) { throw 'Release tags must point to a commit on main.' }
+          } else {
+            git show-ref --verify --quiet "refs/tags/$env:RELEASE_VERSION"
+            if ($LASTEXITCODE -eq 0) { throw 'Tag already exists; release tags are immutable.' }
+            if ($LASTEXITCODE -ne 1) { throw 'Failed to check the release tag.' }
+          }
           $global:LASTEXITCODE = 0
       - uses: ./.github/actions/setup-build
         with:
@@ -60,8 +68,8 @@ jobs:
       - name: Build verified Release packages
         shell: cmd
         env:
-          RELEASE_VERSION: ${{ inputs.version }}
-          RELEASE_SDK: ${{ inputs.sdk }}
+          RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+          RELEASE_SDK: ${{ inputs.sdk || 'official' }}
         run: build.cmd mod-pack --sdk "%RELEASE_SDK%" --configuration Release --tag "%RELEASE_VERSION%" --out-dir .release --full true
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -75,7 +83,7 @@ jobs:
           include-hidden-files: true
           compression-level: 0
   publish:
-    if: ${{ !inputs.dry_run && inputs.sdk == 'official' }}
+    if: ${{ github.event_name == 'push' || (!inputs.dry_run && inputs.sdk == 'official') }}
     needs: package
     runs-on: ubuntu-latest
     permissions:
@@ -88,7 +96,7 @@ jobs:
       - name: Publish experimental release after successful verification
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v2
         with:
-          tag_name: ${{ inputs.version }}
+          tag_name: ${{ inputs.version || github.ref_name }}
           target_commitish: ${{ github.sha }}
           prerelease: true
           body_path: .release/release-notes.md

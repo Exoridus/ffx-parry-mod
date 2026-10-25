@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Exoridus/ffx-parry-mod/docs/workspace-config.local.schema.json",
+  "$id": "https://github.com/Exoridus/ffx-parry-mod/build/config.local.schema.json",
   "title": "Workspace Local Config",
   "type": "object",
   "additionalProperties": false,

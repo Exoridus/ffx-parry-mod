@@ -8,7 +8,6 @@
 
 ## Language and Style
 
-- Follow the repository style guide: [docs/style-guide.md](docs/style-guide.md).
 - Conventional Commits are required for all commit subjects.
 
 ## Prerequisites

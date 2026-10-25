@@ -52,6 +52,16 @@ build-findings`, then `build.cmd kb-index --incremental`. Both generators are
 required: the findings layer is read from `index.json`, not from `curated/`,
 so skipping `build-findings` leaves the finding invisible with no error. A
 negative result earns the same write-back as a positive one.
+
+When mod or tool work changes a recorded behavior, setting, integration or
+limitation, update that project's facts and exact evidence hashes in
+`inputs/mappings/project_knowledge/<project-id>.json` in the same task. Run
+`build.cmd build-project-knowledge --name <project-id>`, then the incremental
+index pass. `kb-index` also checks all profiles automatically. Changed or
+missing evidence suppresses the affected claim until reviewed; unavailable
+sources retain historical observations with `source_state: unavailable`.
+`source_observed` describes code, not a successful in-game test. Keep source
+code in the project and write reusable engine results as findings.
 <!-- ffx-kb-first:portable:end -->
 
 

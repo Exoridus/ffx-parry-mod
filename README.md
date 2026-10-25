@@ -1,5 +1,7 @@
 <div align="center">
 
+![FFX Parry](resources/Banner.png)
+
 # FFX Parry
 
 ### Turn incoming attacks into a timing challenge.
@@ -15,7 +17,7 @@ A Fahrenheit mod for **Final Fantasy X HD Remaster on Windows**.
 </div>
 
 > [!IMPORTANT]
-> **Experimental alpha12 development.** This branch uses matching local Fahrenheit and SDK packages from the commit in [fahrenheit.release.ref](fahrenheit.release.ref). These packages are development builds, not official-SDK releases. Build and packaging checks do not prove in-game compatibility with Steam build **25501027**. FFX-2 is unsupported.
+> Experimental. Built with the official Fahrenheit alpha12 SDK and tested on Steam build **25501027**; the mod refuses to load on any other executable. FFX-2 is not supported.
 
 ## What it provides
 

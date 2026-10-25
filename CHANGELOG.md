@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.5.3 (2026-10-25)
+
+- Read the current event name once per event instead of on every main loop pass; the repeated eventid.bin reads competed with the game's loader and stretched scene transitions.
+- Call MsExeInputCue with its real signature (actor id and mode, returning a value) so the hook no longer corrupts the stack.
+- Refuse to load on any executable other than Steam build 25501027, checked by SHA-256, instead of hooking unknown code.
+- Release from the official Fahrenheit alpha12 SDK on version tag pushes.
+- Restore the README banner with new artwork; move internal research notes to ffx-knowledge-base.
+
 ## v0.5.2 (2026-10-15)
 
 Development build for the pinned Fahrenheit alpha12 source and matching local SDK. Official-SDK publication remains blocked until the corresponding upstream packages are available.

@@ -62,7 +62,7 @@ Build and deploy:
 .\build.cmd start [--game-dir "C:\\Path\\To\\Game"] [--elevated|--no-elevated]
 ```
 
-Research, Ghidra, game-data extraction and community sync are maintained in the sibling `ffx-knowledge-base` repository. See [Data Pipeline](data-pipeline.md).
+Research, Ghidra, game-data extraction and community sync are maintained in the sibling `ffx-knowledge-base` repository; its `docs/mods/parry/` holds this mod's research notes.
 
 ## Parry Timing Determinism Checks
 
@@ -139,7 +139,6 @@ publishing anything.
 ## References
 
 - Workflow map: `docs/automation.md`
-- Data pipeline: `docs/data-pipeline.md`
 - Localization strategy: `docs/localization.md`
-- Pointer/hook primer: `docs/pointers-hooks-guide.md`
-- Local config schema: `docs/workspace-config.local.schema.json`
+- Research notes, hook primer and data pipeline: `ffx-knowledge-base/docs/mods/parry/`
+- Local config schema: `build/config.local.schema.json`
