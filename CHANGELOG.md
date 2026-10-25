@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.5.4 (2026-10-25)
+
+Same mod as v0.5.3, whose release was published without its packages: the repository's immutable releases rejected the uploads. Releases are now assembled as drafts and published afterwards.
+
 ## v0.5.3 (2026-10-25)
 
 - Read the current event name once per event instead of on every main loop pass; the repeated eventid.bin reads competed with the game's loader and stretched scene transitions.
