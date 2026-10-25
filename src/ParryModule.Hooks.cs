@@ -2,13 +2,13 @@ namespace Fahrenheit.Mods.Parry;
 
 public unsafe sealed partial class ParryModule
 {
-    private void h_ms_exe_input_cue()
+    private uint h_ms_exe_input_cue(uint actorId, byte mode)
     {
         bool hadBefore = try_get_head_cue_snapshot(_debugHookCueScratch, out DebugCueSnapshot before);
         ulong frame = _debugFrameIndex;
         DateTime now = current_gameplay_timestamp();
 
-        orig_ms_exe_input_cue();
+        uint result = orig_ms_exe_input_cue(actorId, mode);
 
         bool hasAfter = try_get_head_cue_snapshot(_debugHookCueScratch, out DebugCueSnapshot after);
         bool changed = !hadBefore || !hasAfter || !before.EqualsSemantic(after);
@@ -36,6 +36,7 @@ public unsafe sealed partial class ParryModule
                 frameIndex: frame,
                 parryWindowActive: _runtime.ParryWindowActive);
         }
+        return result;
     }
 
     /// <summary>

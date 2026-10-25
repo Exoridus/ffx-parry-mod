@@ -29,21 +29,21 @@ public static partial class ExternalMemoryOffsetMap
     public static class Functions
     {
         // Expected type: Action<byte, int, int> (MsDamageSetMotion)
-        public const int MsDamageSetMotion = 0x0038CAE0;
+        public const int MsDamageSetMotion = 0x0038CA20;
         
         // Expected type: Func<Chr*, Chr*, Command*, int, int*, int, int> (DmgCalcArmored)
-        public const int DmgCalcArmored = 0x0038AB80;
+        public const int DmgCalcArmored = 0x0038AAC0;
         
         // Expected type: Func<int, nint, int, nint, nint, int, nint, nint, nint, nint, int, int> (MsCalcDamageInternal)
-        public const int MsCalcDamageInternal = 0x0038E680;
+        public const int MsCalcDamageInternal = 0x0038E630;
 
         // Expected type: Func<int, byte, int, int, int, int> (MsSetDamageInternal)
         // The only per-target damage apply in the engine, and the mod's authoritative
         // interception point: both commit passes (p5=0 and p5=1024) run through here.
-        public const int MsSetDamageInternal = 0x0038F0B0;
+        public const int MsSetDamageInternal = 0x0038F060;
 
         // Expected type: Func<uint, char*> (AtelGetEventName)
-        public const int AtelGetEventName = 0x004796e0;
+        public const int AtelGetEventName = 0x00479760;
 
         // MsAtelRequestCamera at FFX.exe+0x397BD0 — gate for in-game camera changes
         // (called from 12 sites including battle camera setup, scene transitions).
@@ -51,7 +51,7 @@ public static partial class ExternalMemoryOffsetMap
         // the active actor is an enemy (so the player keeps the default view that
         // shows incoming attacks clearly).
         // Expected signature: int (int, int, int, int, int, int, int, int) — 8 params, return value unused at every observed call site.
-        public const int MsAtelRequestCamera = 0x00397bd0;
+        public const int MsAtelRequestCamera = 0x00397BC0;
 
         // MsBattleSpecialCameraPause at FFX.exe+0x39DDD0 (absolute 0x0079DDD0) —
         // engine's "enter cinematic camera mode" entry point. Boss / overdrive-class
@@ -66,7 +66,7 @@ public static partial class ExternalMemoryOffsetMap
         // Safety note: hook only Pause (not Free). Pause sets btl._24_1_=1 to enter
         // special mode; Free has an `if (btl._24_1_ != 0)` early guard so when we
         // suppress Pause, Free becomes a no-op naturally — no soft-lock risk.
-        public const int MsBattleSpecialCameraPause = 0x0039ddd0;
+        public const int MsBattleSpecialCameraPause = 0x0039DDB0;
 
         // DO NOT skip-orig FUN_007be090 (FFX.exe+0x3BE090) to hold the camera. It is not the
         // renderer apply — it is the camera op-queue interpreter + per-frame interpolator. The
@@ -96,13 +96,13 @@ public static partial class ExternalMemoryOffsetMap
         // This — not MsAtelRequestCamera and not FUN_007bddd0 — is where a monster attack
         // script puts the camera. FUN_007bddd0/FUN_007bd7e0 only write per-axis tween
         // descriptors (mode, duration, elapsed); gating those makes the camera snap, not stop.
-        public const int AtelCameraPolarSet = 0x003bad30;
+        public const int AtelCameraPolarSet = 0x003BADB0;
 
         // AtelCameraPosSet — FUN_007bb620 at FFX.exe+0x3BB620 (absolute 0x007BB620).
         // The absolute-position sibling, behind camSetPos (wrapper 0x007B91A0, passes p4=1).
         // Signature: void (AtelBasicWorker* worker, int p2, int* stack, int p4) __cdecl.
         // Same stack discipline: coordinates are popped inside, not passed.
-        public const int AtelCameraPosSet = 0x003bb620;
+        public const int AtelCameraPosSet = 0x003BB6A0;
 
         // ATEL stack pop primitives — needed to *suppress* a camera writer cleanly. A writer pops
         // its script args off the ATEL stack inside the callee; skipping the writer without those
@@ -111,8 +111,8 @@ public static partial class ExternalMemoryOffsetMap
         // int* the float pop wants — one pointer serves both.
         //   float AtelPopStackFloat  (AtelBasicWorker* worker, int*       ref_size) __cdecl  (decomp L991484)
         //   int   AtelPopStackInteger(AtelBasicWorker* work,   AtelStack* stack)    __cdecl  (decomp L991522)
-        public const int AtelPopStackFloat   = 0x0046dde0;  // FUN_0086dde0 (absolute 0x0086dde0)
-        public const int AtelPopStackInteger = 0x0046de90;  // FUN_0086de90 (absolute 0x0086de90)
+        public const int AtelPopStackFloat   = 0x0046DE50;  // FUN_0086dde0 (absolute 0x0086dde0)
+        public const int AtelPopStackInteger = 0x0046DF00;  // FUN_0086de90 (absolute 0x0086de90)
 
         // Freecam write path. MsCameraSetRect stamps a 4-float vec into a camera bank; param_2 bit 0
         // selects the eye bank (camSetPos, mode 1) vs the look-at/ref bank (mode 0). It validates the
@@ -121,12 +121,12 @@ public static partial class ExternalMemoryOffsetMap
         // the resolved id (0 until the game runs a real camera write).
         //   void MsCameraSetRect     (uint camId, uint mode, float* vec4) __cdecl  (decomp L874617)
         //   int  AtelGetCameraWorkAdrs(AtelBasicWorker* worker)           __cdecl  (returns int*)
-        public const int MsCameraSetRect       = 0x003bf8c0;  // FUN_007bf8c0 (absolute 0x007bf8c0)
-        public const int AtelGetCameraWorkAdrs = 0x0046ade0;  // FUN_0086ade0 (absolute 0x0086ade0)
+        public const int MsCameraSetRect       = 0x003BF940;  // FUN_007bf8c0 (absolute 0x007bf8c0)
+        public const int AtelGetCameraWorkAdrs = 0x0046AE50;  // FUN_0086ade0 (absolute 0x0086ade0)
 
         // int MsGetBattleScene(void) — the current battle scene/map id (e.g. 0xd40000). Tagged onto
         // a captured freecam angle so a hand-found camera can be pinned to the map it was found on.
-        public const int MsGetBattleScene = 0x00382a30;  // FUN_00782a30 (absolute 0x00782a30)
+        public const int MsGetBattleScene = 0x00382970;  // FUN_00782a30 (absolute 0x00782a30)
 
         // MsLimitUp at FFX.exe+0x3B15A0 (absolute 0x007B15A0) — the engine's overdrive charge
         // primitive, and the only correct way to add gauge. Signature (decomp L863356):
@@ -135,7 +135,7 @@ public static partial class ExternalMemoryOffsetMap
         // overdrive, and applies the Double/Triple-Overdrive and aura multipliers internally
         // (L863374-863405). A raw write to limit_charge bypasses all of that.
         // NOTE: Fahrenheit's generated `void MsLimitUp()` (call.g.cs) has the wrong arity.
-        public const int MsLimitUp = 0x003b15a0;
+        public const int MsLimitUp = 0x003B1590;
 
         // MsAtelRequestMagicCamera at FFX.exe+0x398010 (absolute 0x00798010) — sibling
         // of MsAtelRequestCamera, called from 6 sites during magic spell casts to
@@ -146,7 +146,7 @@ public static partial class ExternalMemoryOffsetMap
         // Signature: byte (int p1, int p2, uint p3, int p4, int p5, int p6, uint p7, int p8, int p9)
         // Returns a byte camera-id; engine's "no camera" sentinel is 0xFF (engine line
         // 841782 default). Suppression branch must return 0xFF, not 0.
-        public const int MsAtelRequestMagicCamera = 0x00398010;
+        public const int MsAtelRequestMagicCamera = 0x00398000;
 
         // MsBtlSetHitEffect at FFX.exe+0x39EC60 (absolute 0x0079EC60) — engine's
         // "registered hit effect" emitter. Global-handle sibling of 0x0039EBC0:
@@ -165,7 +165,7 @@ public static partial class ExternalMemoryOffsetMap
         //
         // Used to fire the Sentinel barrier visual (effect 0x4A) on the parrying
         // character on a successful parry.
-        public const int MsBtlSetHitEffect = 0x0039ec60;
+        public const int MsBtlSetHitEffect = 0x0039EC40;
 
         // MsScreenSetShake — FUN_007c5680 at FFX.exe+0x3C5680 (Ghidra VA 0x007c5680). The
         // engine's native screen shake, exposed to ATEL scripts as the camSetShake family
@@ -184,11 +184,11 @@ public static partial class ExternalMemoryOffsetMap
         // `freq` is the per-frame phase step, not an amplitude. The applier (FUN_007bc090) runs
         // every frame and stops on its own once the mode byte is cleared — a mod only has to
         // fire it once; no per-frame driving, no cleanup.
-        public const int MsScreenSetShake = 0x003c5680;
+        public const int MsScreenSetShake = 0x003C56F0;
 
         // MsScreenResetShake — FFX.exe+0x3C5650 (Ghidra VA 0x007c5650). Clears mode + phase for
         // both axes of a screen. ATEL: camResetShake. Used to cancel a shake early.
-        public const int MsScreenResetShake = 0x003c5650;
+        public const int MsScreenResetShake = 0x003C56C0;
 
         // MsSetMotion — FUN_007ab380 at FFX.exe+0x3AB380 (Ghidra VA 0x007ab380). The
         // engine's battler motion setter. Signature (cdecl):
@@ -199,14 +199,14 @@ public static partial class ExternalMemoryOffsetMap
         //   MsSetMotion(slot, 0x34,           0, 0, 1, 0, 0)   // 0x34     = covered pose
         // i.e. the last two args are 0 (no context / no out-ptr) — that exact pattern is
         // the safe call shape used by the FX/Motion lab to preview arbitrary motion ids.
-        public const int MsSetMotion = 0x003ab380;
+        public const int MsSetMotion = 0x003AB360;
 
         // MsSetChrVisible — FUN_00796670 at FFX.exe+0x396670 (Ghidra VA 0x00796670).
         // Dedicated battler-visibility setter: void MsSetChrVisible(int slot, int visible)
         // (thin wrapper over FUN_00797090(slot, 2, visible)). Engine usage shows (slot, 0)
         // to hide and (slot, flag) to show. Used by the FX lab's experimental "Restore char"
         // button to re-show a model that a status/death effect (e.g. petrify-shatter) hid.
-        public const int MsSetChrVisible = 0x00396670;
+        public const int MsSetChrVisible = 0x00396660;
 
         // MsResetBindEffect — FUN_00788f20 at FFX.exe+0x388F20 (Ghidra VA 0x00788f20).
         // Per-character effect reset: void MsResetBindEffect(byte slot). Clears the slot's
@@ -214,14 +214,14 @@ public static partial class ExternalMemoryOffsetMap
         // This is the engine's own per-char teardown (called from MsBtlChrFree) — a TARGETED
         // clear, unlike the global op_et_battle_effect_free/init (MsEtEffectStop/Set) that
         // depends on battle-lifecycle state and crashed. Worst case here is a no-op, not a crash.
-        public const int MsResetBindEffect = 0x00388f20;
+        public const int MsResetBindEffect = 0x00388E60;
 
         // MsEffectEndMotion — FUN_00787a10 at FFX.exe+0x387A10 (Ghidra VA 0x00787a10).
         // The engine's "a battler's motion just finished" handler: void(uint chr_id, int mode).
         // Hooked observe-only (call orig + log) to measure how long a played motion runs — the
         // data we need to decide whether the parry window / whiff recovery should be driven by
         // the real animation length instead of the static FINAL_PARRY_SPEC windows.
-        public const int MsEffectEndMotion = 0x00387a10;
+        public const int MsEffectEndMotion = 0x00387950;
 
         // MsInsertBtlCommand at FFX.exe+0x3929D0 — engine-public "queue a battle
         // command for a chr to execute as the next available action".
@@ -244,7 +244,7 @@ public static partial class ExternalMemoryOffsetMap
         // line 832786 in the decompile snapshot — that's the engine's own auto-
         // counter implementation. We follow the same convention for the streak
         // counter-attack feature so the cue interleaves cleanly with CTB.
-        public const int MsInsertBtlCommand = 0x003929d0;
+        public const int MsInsertBtlCommand = 0x003929B0;
 
         // MsDmgCalc_CheckHit at FFX.exe+0x38A950 (absolute 0x0078A950) — engine's
         // accuracy/evasion roll inside the damage modifier pipeline. Returns
@@ -258,7 +258,7 @@ public static partial class ExternalMemoryOffsetMap
         //
         // Used by the disable-native-evasion feature to override MISS → HIT for PC
         // targets only (aeons and monsters fall through to vanilla evade).
-        public const int MsDmgCalcCheckHit = 0x0038a950;
+        public const int MsDmgCalcCheckHit = 0x0038A890;
 
         // ---------------------------------------------------------------------
         // Adopted from Fahrenheit's generated `FhFfx.FhCall.__addr_*` constants so the
@@ -267,13 +267,13 @@ public static partial class ExternalMemoryOffsetMap
         // these ourselves the rename cannot reach us. Values are byte-identical to
         // alpha10's call.g.cs.
         // ---------------------------------------------------------------------
-        public const int MsExeInputCue             = 0x003b22a0;
-        public const int MsSetDamage               = 0x0038da40;
-        public const int MsCalcDamage              = 0x00389800;
-        public const int MsActionRequest           = 0x003acec0;
-        public const int MsCalcCommand             = 0x003893a0;
-        public const int MsCheckStatusBeforeAction = 0x003af500;
-        public const int MsLimitTypeDamageCheck    = 0x003b0d60;
-        public const int OpEtBattleGenkoCounterGet = 0x003fb160;
+        public const int MsExeInputCue             = 0x003B2290;
+        public const int MsSetDamage               = 0x0038D980;
+        public const int MsCalcDamage              = 0x00389740;
+        public const int MsActionRequest           = 0x003ACEB0;
+        public const int MsCalcCommand             = 0x003892E0;
+        public const int MsCheckStatusBeforeAction = 0x003AF4F0;
+        public const int MsLimitTypeDamageCheck    = 0x003B0D50;
+        public const int OpEtBattleGenkoCounterGet = 0x003FB240;
     }
 }

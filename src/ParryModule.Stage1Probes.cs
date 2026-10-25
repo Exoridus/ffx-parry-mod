@@ -16,25 +16,12 @@ public unsafe sealed partial class ParryModule
     // probe handles are not even hooked in init(), so probe-disabled play is
     // identical to a build without this file.
     //
-    // ── SIGNATURES ARE NOT ALL VERIFIED. READ THIS BEFORE ENABLING. ──
-    //
-    // A wrong arity or calling convention here does not fail loudly: the detour
-    // installs, and the stack unbalances on the first call. Enabling this option
-    // crashed battle start on 2026-07-10, twice over:
-    //
-    //   * The seventh probe, MsAtelRequestMagicCamera, was declared cdecl/void()
-    //     while the function takes nine arguments and returns a byte — as this
-    //     mod's own working hook in ParryModule.Hooks.cs proves. It also hooked a
-    //     function the camera lock already hooks. It has been removed; the camera
-    //     lock's hook already logs that call site through the CameraProbe channel.
-    //   * MsSetMotion was declared __stdcall/uint from Ghidra, contradicting the
-    //     cdecl/int shape this mod calls every battle for the dodge step-out. It is
-    //     now cdecl/int, matching the caller that demonstrably works.
-    //
-    // MsCalcCommand, MsCheckStatusBeforeAction and op_et_battle_genko_counter_get
-    // are still declared cdecl/0-arg from Ghidra's "unknown" convention. That is a
-    // guess. Verify each against the decompilation before trusting a session that
-    // ran with this option on.
+    // Native signatures must preserve stack arguments even when logging is off;
+    // an installed observational hook still forwards every call to the engine.
+    // MsSetMotion is cdecl/int, matching the active step-out caller.
+
+    // The command and status probes preserve both native stack arguments. The
+    // counter getter is a zero-argument cdecl function with a zero-extended return.
 
     /// <summary>
     ///     Per-probe per-frame ceiling. With seven probes this is a worst-case
@@ -43,17 +30,11 @@ public unsafe sealed partial class ParryModule
     /// </summary>
     private const int Stage1ProbeMaxPerFrame = 8;
 
-    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate uint MsActionRequestProbeDelegate(
         int target_id, int attacker_id, int p3, int p4, int p5, int p6);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void MsCalcCommandProbeDelegate();
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate int MsCheckStatusBeforeActionProbeDelegate();
-
-    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
     private delegate int MsLimitTypeDamageCheckProbeDelegate(
         int attacker_id, nint attacker, int target_id, nint target, int p5, int p6, int p7);
 
@@ -131,9 +112,9 @@ public unsafe sealed partial class ParryModule
         return result;
     }
 
-    private void h_stage1_ms_calc_command()
+    private void h_stage1_ms_calc_command(nint cue, int commandIndex)
     {
-        orig_stage1_ms_calc_command();
+        orig_stage1_ms_calc_command(cue, commandIndex);
 
         if (_optionNativeProbeLogging
             && _throttleMsCalcCommand.ShouldEmit(_debugFrameIndex, Stage1ProbeMaxPerFrame))
@@ -151,9 +132,9 @@ public unsafe sealed partial class ParryModule
         }
     }
 
-    private int h_stage1_ms_check_status_before_action()
+    private int h_stage1_ms_check_status_before_action(int actorId, nint actor)
     {
-        int result = orig_stage1_ms_check_status_before_action();
+        int result = orig_stage1_ms_check_status_before_action(actorId, actor);
 
         if (_optionNativeProbeLogging
             && _throttleMsCheckStatusBeforeAction.ShouldEmit(_debugFrameIndex, Stage1ProbeMaxPerFrame))

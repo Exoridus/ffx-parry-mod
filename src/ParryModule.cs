@@ -21,7 +21,6 @@ public unsafe sealed partial class ParryModule : FhModule
     private const int DebugLogRingCapacity = 500;
     private const int CueHistoryRingCapacity = 64;
     private const int DebugTurnRowCapacity = 500;
-    private delegate char* AtelGetEventName(uint eventId);
     // Community-confirmed signature: int __cdecl MsSetDamage(byte param_1, int param_2, int param_3)
     // param_1 = attacker battler slot
     // param_2 = target party slot (>= 0) for the actual damage call, or -5 for setup/finalization
@@ -29,11 +28,8 @@ public unsafe sealed partial class ParryModule : FhModule
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int MsSetDamageProbe(byte param_1, int param_2, int param_3);
 
-    // MsExeInputCue — `void ()`, __cdecl. Carried locally rather than using
-    // FhFfx.FhCall.MsExeInputCue: upstream is prefixing every generated delegate with
-    // `d_` ahead of alpha11, and this mod no longer depends on the FhCall surface at all.
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void MsExeInputCueProbe();
+    private delegate uint MsExeInputCueProbe(uint actorId, byte mode);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void MsDamageSetMotionProbe(byte target, int p2, int p3);
@@ -716,6 +712,12 @@ public unsafe sealed partial class ParryModule : FhModule
 
     public override bool init(FhModContext mod_context, FileStream global_state_file)
     {
+        if (!NativeBuild.TryValidate(out string nativeError))
+        {
+            _logger.Error(nativeError);
+            return false;
+        }
+
         // The mod's own state directory, still needed for the files that are not settings:
         // the session log and the Lab's motion blocklist.
         _stateDirectory = resolve_state_directory(global_state_file);
@@ -1039,18 +1041,26 @@ public unsafe sealed partial class ParryModule : FhModule
             _runtime.CurrentCueSignature = 0;
         }
     }
+    private static uint _cachedEventNameId = uint.MaxValue;
+    private static string _cachedEventName = string.Empty;
+
+    // AtelGetEventName opens, seeks, reads and closes eventid.bin on every call. Called per main loop
+    // pass it competed with the game's loader for the file system and stretched scene transitions by
+    // seconds, so the name is read once per event id.
     private static string get_current_event_name(uint eventId)
     {
+        if (eventId == _cachedEventNameId) return _cachedEventName;
         try
         {
-            char* ptr = get_fptr<AtelGetEventName>(ExternalMemoryOffsetMap.Functions.AtelGetEventName)(eventId);
-            if (ptr == null) return string.Empty;
-            return Marshal.PtrToStringAnsi((nint)ptr) ?? string.Empty;
+            char* ptr = FhFfx.FhCall.AtelGetEventName.fnptr!(eventId);
+            _cachedEventName = ptr == null ? string.Empty : Marshal.PtrToStringAnsi((nint)ptr) ?? string.Empty;
         }
         catch
         {
-            return string.Empty;
+            _cachedEventName = string.Empty;
         }
+        _cachedEventNameId = eventId;
+        return _cachedEventName;
     }
 
     private sealed class DebugLogEntry

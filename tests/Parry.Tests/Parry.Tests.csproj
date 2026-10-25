@@ -31,4 +31,9 @@
     <Compile Include="..\..\src\overlay\CombatLabelPalette.cs" Link="overlay\CombatLabelPalette.cs" />
     <Compile Include="..\..\src\overlay\OverlayAnchorMath.cs" Link="overlay\OverlayAnchorMath.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../../src/NativeBuild.cs" Link="NativeBuild.cs" />
+    <Compile Include="../../src/ParryModule.Stage1Signatures.cs" Link="ParryModule.Stage1Signatures.cs" />
+    <Compile Include="../../src/data/ExternalMemoryOffsetMap.Runtime.cs" Link="ExternalMemoryOffsetMap.Runtime.cs" />
+  </ItemGroup>
 </Project>

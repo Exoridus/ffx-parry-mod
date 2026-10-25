@@ -116,8 +116,8 @@ public unsafe sealed partial class ParryModule
     private static FhCallLocation loc_ms_effect_end_motion()
         => new("FFX.exe", (nint)ExternalMemoryOffsetMap.Functions.MsEffectEndMotion);
 
-    private void orig_ms_exe_input_cue()
-        => new FhCallHandle<MsExeInputCueProbe>(loc_ms_exe_input_cue()).chain_from(_dMsExeInputCue).fnptr!();
+    private uint orig_ms_exe_input_cue(uint actorId, byte mode)
+        => new FhCallHandle<MsExeInputCueProbe>(loc_ms_exe_input_cue()).chain_from(_dMsExeInputCue).fnptr!(actorId, mode);
 
     private int orig_ms_set_damage(byte param_1, int param_2, int param_3)
         => new FhCallHandle<MsSetDamageProbe>(loc_ms_set_damage()).chain_from(_dMsSetDamage).fnptr!(param_1, param_2, param_3);
@@ -193,11 +193,11 @@ public unsafe sealed partial class ParryModule
     private uint orig_stage1_ms_action_request(int target_id, int attacker_id, int p3, int p4, int p5, int p6)
         => new FhCallHandle<MsActionRequestProbeDelegate>(loc_stage1_ms_action_request()).chain_from(_dStage1MsActionRequest).fnptr!(target_id, attacker_id, p3, p4, p5, p6);
 
-    private void orig_stage1_ms_calc_command()
-        => new FhCallHandle<MsCalcCommandProbeDelegate>(loc_stage1_ms_calc_command()).chain_from(_dStage1MsCalcCommand).fnptr!();
+    private void orig_stage1_ms_calc_command(nint cue, int commandIndex)
+        => new FhCallHandle<MsCalcCommandProbeDelegate>(loc_stage1_ms_calc_command()).chain_from(_dStage1MsCalcCommand).fnptr!(cue, commandIndex);
 
-    private int orig_stage1_ms_check_status_before_action()
-        => new FhCallHandle<MsCheckStatusBeforeActionProbeDelegate>(loc_stage1_ms_check_status_before_action()).chain_from(_dStage1MsCheckStatusBeforeAction).fnptr!();
+    private int orig_stage1_ms_check_status_before_action(int actorId, nint actor)
+        => new FhCallHandle<MsCheckStatusBeforeActionProbeDelegate>(loc_stage1_ms_check_status_before_action()).chain_from(_dStage1MsCheckStatusBeforeAction).fnptr!(actorId, actor);
 
     private int orig_stage1_ms_limit_type_damage_check(
         int attacker_id, nint attacker, int target_id, nint target, int p5, int p6, int p7)
