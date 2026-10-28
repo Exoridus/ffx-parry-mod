@@ -749,6 +749,7 @@ public unsafe sealed partial class ParryModule : FhModule
 
         install_stage1_probes();
 
+        lock (_vrrSimulationGate) _vrrSimulationReady = true;
         _logger.Info("ParryPrototype ready. Adjust options via Mod Config (F7).");
         return true;
     }
@@ -765,8 +766,12 @@ public unsafe sealed partial class ParryModule : FhModule
 
     private void on_pre_update(Fahrenheit.Events.UpdateLoopEventArgs e)
     {
+        if (!try_defer_vrr_simulation(e.delta)) on_simulation_update(e.delta);
+    }
+
+    private void on_simulation_update(float deltaSeconds)
+    {
         _debugFrameIndex++;
-        float deltaSeconds = e.delta;
         _simulationClockSeconds += deltaSeconds;
 
         // PreUpdate is raised from a hook on Sg_MainLoop, so this is the rate the mod samples input
